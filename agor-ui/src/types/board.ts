@@ -1,10 +1,34 @@
+import type { BoardID, SessionID } from './id';
+
 export interface Board {
-  board_id: string;
+  /** Unique board identifier (UUIDv7) */
+  board_id: BoardID;
+
   name: string;
+
+  /**
+   * Optional URL-friendly slug for board
+   *
+   * Examples: "main", "experiments", "bug-fixes"
+   *
+   * Allows CLI commands like:
+   *   agor session list --board experiments
+   * instead of:
+   *   agor session list --board 01933e4a
+   */
+  slug?: string;
+
   description?: string;
-  sessions: string[];  // session IDs in this board
+
+  /** Session IDs in this board */
+  sessions: SessionID[];
+
   created_at: string;
   last_updated: string;
-  color?: string;  // hex color for visual distinction
-  icon?: string;   // optional emoji/icon
+
+  /** Hex color for visual distinction */
+  color?: string;
+
+  /** Optional emoji/icon */
+  icon?: string;
 }

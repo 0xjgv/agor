@@ -17,8 +17,17 @@ Session {
   agent_version?: string
   status: 'idle' | 'running' | 'completed' | 'failed'
 
+  // Repository Context (required)
+  repo: {
+    repo_id?: string              // If Agor-managed repo
+    repo_slug?: string            // Repo slug (e.g., "myapp")
+    worktree_name?: string        // Worktree name if using Agor-managed
+    cwd: string                   // Working directory (absolute path)
+    managed_worktree: boolean     // true if in ~/.agor/worktrees/
+  }
+
   // Context
-  concepts: string[]              // Loaded concept files
+  concepts: string[]              // Loaded concept file paths
   description?: string            // Human-readable summary
 
   // Git State
@@ -26,12 +35,6 @@ Session {
     ref: string                   // Branch/tag name
     base_sha: string              // Starting commit
     current_sha: string           // Current commit (can be {sha}-dirty)
-  }
-
-  // Worktree (optional)
-  worktree?: {
-    path: string
-    managed_by_agor: boolean
   }
 
   // Genealogy
@@ -98,6 +101,43 @@ Task {
 }
 ```
 
+### Repo
+Git repository (managed or referenced by Agor).
+
+```typescript
+Repo {
+  // Identity
+  repo_id: string                 // UUIDv7
+  slug: string                    // URL-friendly identifier (e.g., "myapp")
+  name: string                    // Human-readable name
+
+  // Git
+  remote_url?: string             // Git remote (if cloned by Agor)
+  local_path: string              // Path to bare repo (~/.agor/repos/{slug})
+  managed_by_agor: boolean        // true if cloned by Agor
+  default_branch?: string         // Usually "main" or "master"
+
+  // Worktrees
+  worktrees: WorktreeConfig[]     // Active worktrees for this repo
+
+  // Timestamps
+  created_at: string
+  last_updated: string
+}
+
+WorktreeConfig {
+  name: string                    // Worktree slug (e.g., "feat-auth")
+  path: string                    // Absolute path to worktree directory
+  ref: string                     // Branch/tag/commit checked out
+  new_branch: boolean             // Created during worktree creation?
+  tracking_branch?: string        // Remote tracking branch (if any)
+  sessions: string[]              // Session IDs using this worktree
+  last_commit_sha?: string        // Last commit in this worktree
+  created_at: string
+  last_used: string
+}
+```
+
 ### Board
 Collection of sessions (organizational primitive).
 
@@ -105,6 +145,7 @@ Collection of sessions (organizational primitive).
 Board {
   board_id: string
   name: string
+  slug?: string                   // Optional URL-friendly slug
   description?: string
   icon?: string                   // Emoji or icon identifier
   color?: string                  // Hex color for visual distinction
@@ -178,16 +219,28 @@ Session A (root)
    - Delegated subtask
 
 4. **Session → Concepts**: Many-to-many
-   - A session can load multiple concepts
+   - A session can load multiple concepts (file paths)
    - A concept can be used by multiple sessions
 
 5. **Board → Sessions**: One-to-many
    - A board contains multiple sessions
    - A session can belong to one board
 
-6. **Session → Git State**: One-to-one
+6. **Repo → Worktrees**: One-to-many
+   - A repo can have multiple worktrees
+   - Each worktree checks out a specific branch
+
+7. **Worktree → Sessions**: One-to-many
+   - Multiple sessions can share a worktree (same working directory)
+   - Sessions track which worktree they use via `repo.worktree_name`
+
+8. **Session → Repo**: Many-to-one (optional)
+   - Sessions using Agor-managed worktrees reference a repo
+   - Sessions in user directories have no repo link (repo_id is null)
+
+9. **Session → Git State**: One-to-one
    - Each session tracks a git reference
-   - Can optionally manage a worktree
+   - Repo context provides working directory (cwd)
 
 ## Information Flow
 

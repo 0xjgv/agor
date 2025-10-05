@@ -227,14 +227,48 @@ CREATE INDEX sessions_created_idx ON sessions(created_at);
 - `message_count`
 - `tool_use_count`
 
+### ID Management with UUIDv7
+
+**All entities use UUIDv7 for primary keys:**
+
+- **Format:** `01933e4a-7b89-7c35-a8f3-9d2e1c4b5a6f` (36 chars)
+- **Time-ordered:** First 48 bits = Unix timestamp (ms)
+- **Globally unique:** 2^122 possible values
+- **B-tree friendly:** Sequential IDs improve index performance
+
+**Short ID Display:**
+
+- Store full UUID in database
+- Display 8-char prefix to users (`01933e4a`)
+- Git-style collision resolution (expand to 12+ chars when ambiguous)
+- Efficient prefix matching via `LIKE 'prefix%'` on indexed TEXT column
+
+**See:** `context/concepts/id-management.md` for complete details.
+
+```typescript
+import { generateId } from '@/lib/ids';
+
+// Generate UUIDv7 at application level
+const sessionId = generateId();
+// => "01933e4a-7b89-7c35-a8f3-9d2e1c4b5a6f"
+
+// SQLite doesn't have built-in UUID generation,
+// so we use Drizzle's $defaultFn()
+```
+
+---
+
 ### Drizzle Schema Definition
 
 ```typescript
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
+import { generateId } from '@/lib/ids';
 
 export const sessions = sqliteTable('sessions', {
   // Materialized columns (queryable, indexed)
-  id: text('id').primaryKey(),
+  session_id: text('session_id', { length: 36 })
+    .primaryKey()
+    .$defaultFn(() => generateId()),
   created_at: integer('created_at', { mode: 'timestamp' }).notNull(),
   updated_at: integer('updated_at', { mode: 'timestamp' }),
   status: text('status', {
@@ -273,10 +307,12 @@ export const sessions = sqliteTable('sessions', {
 }));
 
 export const tasks = sqliteTable('tasks', {
-  id: text('id').primaryKey(),
-  session_id: text('session_id')
+  task_id: text('task_id', { length: 36 })
+    .primaryKey()
+    .$defaultFn(() => generateId()),
+  session_id: text('session_id', { length: 36 })
     .notNull()
-    .references(() => sessions.id, { onDelete: 'cascade' }),
+    .references(() => sessions.session_id, { onDelete: 'cascade' }),
   created_at: integer('created_at', { mode: 'timestamp' }).notNull(),
   status: text('status', {
     enum: ['created', 'running', 'completed', 'failed']
@@ -310,13 +346,15 @@ export const tasks = sqliteTable('tasks', {
 }));
 
 export const boards = sqliteTable('boards', {
-  id: text('id').primaryKey(),
+  board_id: text('board_id', { length: 36 })
+    .primaryKey()
+    .$defaultFn(() => generateId()),
   created_at: integer('created_at', { mode: 'timestamp' }).notNull(),
 
   data: text('data', { mode: 'json' }).$type<{
     name: string;
     description?: string;
-    sessions: string[];
+    sessions: string[];  // UUIDs
     color?: string;
     icon?: string;
   }>().notNull(),
@@ -352,6 +390,61 @@ ALTER TABLE sessions ADD COLUMN agent TEXT;
 UPDATE sessions SET agent = json_extract(data, '$.agent');
 CREATE INDEX agent_idx ON sessions(agent);
 ```
+
+---
+
+### Short ID Resolution & Indexing
+
+**CLI/UI users input short IDs (8 chars), database stores full UUIDs (36 chars).**
+
+**Efficient Prefix Matching:**
+
+```typescript
+// User input: "01933e4a"
+// Query pattern: "01933e4a%"
+
+const sessions = await db
+  .select()
+  .from(sessionsTable)
+  .where(sql`session_id LIKE ${shortIdPrefix + '%'}`)
+  .all();
+
+if (sessions.length === 1) {
+  return sessions[0];
+} else if (sessions.length > 1) {
+  throw new Error('Ambiguous ID - use longer prefix');
+} else {
+  throw new Error('Session not found');
+}
+```
+
+**B-tree Index Performance:**
+
+- Primary key on `session_id` automatically creates B-tree index
+- `LIKE 'prefix%'` queries use index for seek (O(log n))
+- Matches are typically 1-10 entities (fast scan)
+- No additional indexes needed for short ID resolution
+
+**Alternative: Range Query (slightly faster):**
+
+```typescript
+// Convert "01933e4a" to range
+// Start: "01933e4a"
+// End:   "01933e4b" (increment last char)
+
+const sessions = await db
+  .select()
+  .from(sessionsTable)
+  .where(
+    and(
+      gte(sessionsTable.session_id, '01933e4a'),
+      lt(sessionsTable.session_id, '01933e4b')
+    )
+  )
+  .all();
+```
+
+**See:** `src/lib/ids.ts` for resolution utilities.
 
 ---
 

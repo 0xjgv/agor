@@ -1,11 +1,22 @@
 // src/types/task.ts
+import type { TaskID, SessionID } from './id';
+import type { ReportPath, ReportTemplate } from './report';
+
 export type TaskStatus = 'created' | 'running' | 'completed' | 'failed';
 
 export interface Task {
-  task_id: string;
-  session_id: string;
-  full_prompt: string; // Original user prompt (can be multi-line)
-  description?: string; // Optional: LLM-generated short summary
+  /** Unique task identifier (UUIDv7) */
+  task_id: TaskID;
+
+  /** Session this task belongs to */
+  session_id: SessionID;
+
+  /** Original user prompt (can be multi-line) */
+  full_prompt: string;
+
+  /** Optional: LLM-generated short summary */
+  description?: string;
+
   status: TaskStatus;
 
   // Message range
@@ -29,10 +40,14 @@ export interface Task {
   // Model
   model: string;
 
-  // Report
+  // Report (auto-generated after task completion)
   report?: {
-    template: string;
-    path: string;
+    /**
+     * File path relative to context/reports/
+     * Format: "<session-id>/<task-id>.md"
+     */
+    path: ReportPath;
+    template: ReportTemplate;
     generated_at: string;
   };
 
