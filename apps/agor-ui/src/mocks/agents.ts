@@ -16,10 +16,10 @@ export const mockAgentCodex: Agent = {
   id: 'codex',
   name: 'codex',
   icon: '💻',
-  installed: true,
+  installed: false,
   version: '0.5.1',
-  description: 'OpenAI Codex - Advanced code generation and completion',
-  installable: true,
+  description: 'OpenAI Codex - Advanced code generation and completion (Coming Soon)',
+  installable: false,
 };
 
 export const mockAgentCursor: Agent = {
@@ -27,8 +27,8 @@ export const mockAgentCursor: Agent = {
   name: 'cursor',
   icon: '✏️',
   installed: false,
-  description: 'Cursor AI - Intelligent code editor with AI pair programming',
-  installable: true,
+  description: 'Cursor AI - Intelligent code editor with AI pair programming (Coming Soon)',
+  installable: false,
 };
 
 export const mockAgentGemini: Agent = {
@@ -36,8 +36,8 @@ export const mockAgentGemini: Agent = {
   name: 'gemini',
   icon: '💎',
   installed: false,
-  description: 'Google Gemini - Multimodal AI for code and data analysis',
-  installable: true,
+  description: 'Google Gemini - Multimodal AI for code and data analysis (Coming Soon)',
+  installable: false,
 };
 
 export const mockAgents: Agent[] = [
@@ -47,5 +47,5 @@ export const mockAgents: Agent[] = [
   mockAgentGemini,
 ];
 
-export const mockInstalledAgents = mockAgents.filter((agent) => agent.installed);
-export const mockNotInstalledAgents = mockAgents.filter((agent) => !agent.installed);
+export const mockInstalledAgents = mockAgents.filter(agent => agent.installed);
+export const mockNotInstalledAgents = mockAgents.filter(agent => !agent.installed);

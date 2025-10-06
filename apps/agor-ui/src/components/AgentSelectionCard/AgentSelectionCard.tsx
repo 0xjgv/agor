@@ -17,14 +17,17 @@ export const AgentSelectionCard: React.FC<AgentSelectionCardProps> = ({
   onClick,
   onInstall,
 }) => {
+  const isDisabled = !agent.installed;
+
   return (
     <Card
-      hoverable
-      onClick={onClick}
+      hoverable={!isDisabled}
+      onClick={isDisabled ? undefined : onClick}
       style={{
         borderColor: selected ? '#1890ff' : undefined,
         borderWidth: selected ? 2 : 1,
-        cursor: 'pointer',
+        cursor: isDisabled ? 'not-allowed' : 'pointer',
+        opacity: isDisabled ? 0.6 : 1,
       }}
       styles={{
         body: { padding: 12 },
