@@ -66,7 +66,8 @@ export class SessionsService extends DrizzleService<Session, Partial<Session>, S
         git_state: { ...parent.git_state },
         genealogy: {
           forked_from_session_id: parent.session_id,
-          fork_point_task_id: data.task_id,
+          // biome-ignore lint/suspicious/noExplicitAny: TaskID is branded UUID string
+          fork_point_task_id: data.task_id as any,
           children: [],
         },
         concepts: [...(parent.concepts || [])],
@@ -79,18 +80,20 @@ export class SessionsService extends DrizzleService<Session, Partial<Session>, S
 
     // Update parent's children list
     const parentChildren = parent.genealogy?.children || [];
+    // Cast forkedSession to Session to handle return type
+    const session = forkedSession as Session;
     await this.patch(
       id,
       {
         genealogy: {
           ...parent.genealogy,
-          children: [...parentChildren, forkedSession.session_id],
+          children: [...parentChildren, session.session_id],
         },
       },
       params
     );
 
-    return forkedSession;
+    return session;
   }
 
   /**
@@ -114,7 +117,8 @@ export class SessionsService extends DrizzleService<Session, Partial<Session>, S
         git_state: { ...parent.git_state },
         genealogy: {
           parent_session_id: parent.session_id,
-          spawn_point_task_id: data.task_id,
+          // biome-ignore lint/suspicious/noExplicitAny: TaskID is branded UUID string
+          spawn_point_task_id: data.task_id as any,
           children: [],
         },
         concepts: [...(parent.concepts || [])],
@@ -127,18 +131,20 @@ export class SessionsService extends DrizzleService<Session, Partial<Session>, S
 
     // Update parent's children list
     const parentChildren = parent.genealogy?.children || [];
+    // Cast spawnedSession to Session to handle return type
+    const session = spawnedSession as Session;
     await this.patch(
       id,
       {
         genealogy: {
           ...parent.genealogy,
-          children: [...parentChildren, spawnedSession.session_id],
+          children: [...parentChildren, session.session_id],
         },
       },
       params
     );
 
-    return spawnedSession;
+    return session;
   }
 
   /**

@@ -6,8 +6,8 @@
  */
 
 import { type Database, MessagesRepository } from '@agor/core/db';
-import type { Message, MessageID, SessionID, TaskID } from '@agor/core/types';
-import type { Paginated, Params } from '@feathersjs/feathers';
+import type { Message, SessionID, TaskID } from '@agor/core/types';
+import type { Params } from '@feathersjs/feathers';
 import { DrizzleService } from '../adapters/drizzle';
 
 /**

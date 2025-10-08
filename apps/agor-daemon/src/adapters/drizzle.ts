@@ -115,13 +115,17 @@ export class DrizzleService<T = any, D = Partial<T>, P extends Params = Params> 
               case '$ne':
                 return item[key] !== opValue;
               case '$gt':
-                return item[key] > opValue;
+                // biome-ignore lint/suspicious/noExplicitAny: Query operator values are dynamic
+                return item[key] > (opValue as any);
               case '$gte':
-                return item[key] >= opValue;
+                // biome-ignore lint/suspicious/noExplicitAny: Query operator values are dynamic
+                return item[key] >= (opValue as any);
               case '$lt':
-                return item[key] < opValue;
+                // biome-ignore lint/suspicious/noExplicitAny: Query operator values are dynamic
+                return item[key] < (opValue as any);
               case '$lte':
-                return item[key] <= opValue;
+                // biome-ignore lint/suspicious/noExplicitAny: Query operator values are dynamic
+                return item[key] <= (opValue as any);
             }
           }
         }

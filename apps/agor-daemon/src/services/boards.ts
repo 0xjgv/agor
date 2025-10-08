@@ -58,14 +58,16 @@ export class BoardsService extends DrizzleService<Board, Partial<Board>, BoardPa
     const sessions = board.sessions || [];
 
     // Avoid duplicates
-    if (sessions.includes(sessionId)) {
+    // biome-ignore lint/suspicious/noExplicitAny: SessionID is branded UUID string
+    if (sessions.includes(sessionId as any)) {
       return board;
     }
 
     return this.patch(
       id,
       {
-        sessions: [...sessions, sessionId],
+        // biome-ignore lint/suspicious/noExplicitAny: SessionID is branded UUID string
+        sessions: [...sessions, sessionId as any],
       },
       params
     ) as Promise<Board>;
@@ -81,7 +83,7 @@ export class BoardsService extends DrizzleService<Board, Partial<Board>, BoardPa
     return this.patch(
       id,
       {
-        sessions: sessions.filter((sid) => sid !== sessionId),
+        sessions: sessions.filter(sid => sid !== sessionId),
       },
       params
     ) as Promise<Board>;

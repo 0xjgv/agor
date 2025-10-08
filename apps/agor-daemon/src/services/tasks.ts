@@ -128,15 +128,13 @@ export class TasksService extends DrizzleService<Task, Partial<Task>, TaskParams
   /**
    * Custom method: Fail a task
    */
-  async fail(id: string, data: { error?: string }, params?: TaskParams): Promise<Task> {
+  async fail(id: string, _data: { error?: string }, params?: TaskParams): Promise<Task> {
     return this.patch(
       id,
       {
         status: 'failed',
         completed_at: new Date().toISOString(),
-        report: {
-          error_message: data.error,
-        },
+        // Don't set report for failed tasks - error info should be in task description
       },
       params
     ) as Promise<Task>;

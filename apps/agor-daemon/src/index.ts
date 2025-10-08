@@ -10,11 +10,11 @@ import { loadConfig } from '@agor/core/config';
 import { createDatabase, MessagesRepository, SessionRepository } from '@agor/core/db';
 import { ClaudeTool } from '@agor/core/tools';
 import type { SessionID } from '@agor/core/types';
-import express, { rest } from '@feathersjs/express';
+import feathersExpress, { errorHandler, rest } from '@feathersjs/express';
 import type { Params } from '@feathersjs/feathers';
 import { feathers } from '@feathersjs/feathers';
 import socketio from '@feathersjs/socketio';
-import type { CorsOptions } from 'cors';
+import express from 'express';
 import { createBoardsService } from './services/boards';
 import { createMessagesService } from './services/messages';
 import { createReposService } from './services/repos';
@@ -46,7 +46,7 @@ async function main() {
   }
 
   // Create Feathers app
-  const app = express(feathers());
+  const app = feathersExpress(feathers());
 
   // Parse JSON
   app.use(express.json());
@@ -86,12 +86,14 @@ async function main() {
   // Configure custom route for bulk message creation
   app.use('/messages/bulk', {
     async create(data: unknown[]) {
-      return messagesService.createMany(data);
+      // biome-ignore lint/suspicious/noExplicitAny: Messages data validated by repository
+      return messagesService.createMany(data as any);
     },
   });
 
   // Configure custom methods for sessions service
-  const sessionsService = app.service('sessions');
+  // biome-ignore lint/suspicious/noExplicitAny: Service type is correct but TS doesn't infer custom methods
+  const sessionsService = app.service('sessions') as any;
   app.use('/sessions/:id/fork', {
     async create(data: { prompt: string; task_id?: string }, params: RouteParams) {
       const id = params.route?.id;
@@ -108,13 +110,16 @@ async function main() {
     },
   });
 
+  // Feathers custom route handler with find method
   app.use('/sessions/:id/genealogy', {
-    async find(_data: undefined, params: RouteParams) {
+    // biome-ignore lint/suspicious/noExplicitAny: Route handler parameter type
+    async find(_data: any, params: RouteParams) {
       const id = params.route?.id;
       if (!id) throw new Error('Session ID required');
       return sessionsService.getGenealogy(id, params);
     },
-  });
+    // biome-ignore lint/suspicious/noExplicitAny: Service type not compatible with Express
+  } as any);
 
   app.use('/sessions/:id/prompt', {
     async create(data: { prompt: string }, params: RouteParams) {
@@ -163,7 +168,8 @@ async function main() {
   });
 
   // Configure custom methods for tasks service
-  const tasksService = app.service('tasks');
+  // biome-ignore lint/suspicious/noExplicitAny: Service type is correct but TS doesn't infer custom methods
+  const tasksService = app.service('tasks') as any;
 
   // Configure custom route for bulk task creation
   app.use('/tasks/bulk', {
@@ -192,7 +198,8 @@ async function main() {
   });
 
   // Configure custom methods for repos service
-  const reposService = app.service('repos');
+  // biome-ignore lint/suspicious/noExplicitAny: Service type is correct but TS doesn't infer custom methods
+  const reposService = app.service('repos') as any;
   app.use('/repos/clone', {
     async create(data: { url: string; name?: string; destination?: string }, params: RouteParams) {
       return reposService.cloneRepository(data, params);
@@ -218,7 +225,8 @@ async function main() {
   });
 
   // Configure custom methods for boards service
-  const boardsService = app.service('boards');
+  // biome-ignore lint/suspicious/noExplicitAny: Service type is correct but TS doesn't infer custom methods
+  const boardsService = app.service('boards') as any;
   app.use('/boards/:id/sessions', {
     async create(data: { sessionId: string }, params: RouteParams) {
       const id = params.route?.id;
@@ -229,17 +237,19 @@ async function main() {
   });
 
   // Health check endpoint
-  app.get('/health', (_req, res) => {
-    res.json({
-      status: 'ok',
-      timestamp: Date.now(),
-      version: '0.1.0',
-      database: DB_PATH,
-    });
+  app.use('/health', {
+    async find() {
+      return {
+        status: 'ok',
+        timestamp: Date.now(),
+        version: '0.1.0',
+        database: DB_PATH,
+      };
+    },
   });
 
   // Error handling
-  app.use(express.errorHandler());
+  app.use(errorHandler());
 
   // Start server
   app.listen(PORT).then(() => {

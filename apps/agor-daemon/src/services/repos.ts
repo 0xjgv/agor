@@ -63,7 +63,7 @@ export class ReposService extends DrizzleService<Repo, Partial<Repo>, RepoParams
     const worktrees = repo.worktrees || [];
 
     // Avoid duplicates
-    if (worktrees.some((wt) => wt.name === worktree.name)) {
+    if (worktrees.some(wt => wt.name === worktree.name)) {
       throw new Error(`Worktree '${worktree.name}' already exists`);
     }
 
@@ -76,6 +76,7 @@ export class ReposService extends DrizzleService<Repo, Partial<Repo>, RepoParams
             name: worktree.name,
             path: worktree.path,
             ref: worktree.branch || 'main',
+            new_branch: false, // Will be updated by createWorktree if needed
             sessions: [],
             created_at: new Date().toISOString(),
             last_used: new Date().toISOString(),
@@ -96,7 +97,7 @@ export class ReposService extends DrizzleService<Repo, Partial<Repo>, RepoParams
     return this.patch(
       id,
       {
-        worktrees: worktrees.filter((wt) => wt.name !== worktreeName),
+        worktrees: worktrees.filter(wt => wt.name !== worktreeName),
       },
       params
     ) as Promise<Repo>;
@@ -146,16 +147,26 @@ export class ReposService extends DrizzleService<Repo, Partial<Repo>, RepoParams
     // Create git worktree
     await gitCreateWorktree(repo.local_path, worktreePath, data.ref, data.createBranch);
 
-    // Add to database
-    return this.addWorktree(
+    // Get current worktrees and add new one with proper new_branch flag
+    const worktrees = repo.worktrees || [];
+    return this.patch(
       id,
       {
-        name: data.name,
-        path: worktreePath,
-        branch: data.ref,
+        worktrees: [
+          ...worktrees,
+          {
+            name: data.name,
+            path: worktreePath,
+            ref: data.ref,
+            new_branch: data.createBranch ?? false,
+            sessions: [],
+            created_at: new Date().toISOString(),
+            last_used: new Date().toISOString(),
+          },
+        ],
       },
       params
-    );
+    ) as Promise<Repo>;
   }
 }
 
