@@ -13,7 +13,6 @@ import {
 import 'reactflow/dist/style.css';
 import type { Session, Task } from '../../types';
 import SessionCard from '../SessionCard';
-import './SessionCanvas.css';
 
 interface SessionCanvasProps {
   sessions: Session[];
@@ -179,7 +178,7 @@ const SessionCanvas = ({
   }, [initialEdges, setEdges]);
 
   return (
-    <div className="session-canvas">
+    <div style={{ width: '100%', height: '100vh' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}

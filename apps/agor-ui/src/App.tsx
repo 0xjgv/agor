@@ -3,7 +3,6 @@ import { Alert, App as AntApp, ConfigProvider, Spin, theme } from 'antd';
 import { App as AgorApp } from './components/App';
 import { useAgorClient, useAgorData, useBoardActions, useSessionActions } from './hooks';
 import { mockAgents } from './mocks';
-import './App.css';
 
 function AppContent() {
   const { message } = AntApp.useApp();

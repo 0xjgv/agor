@@ -5,9 +5,8 @@ import {
   MessageOutlined,
   ToolOutlined,
 } from '@ant-design/icons';
-import { Badge, Space, Spin, Tag, Typography } from 'antd';
+import { Badge, Space, Spin, Tag, Typography, theme } from 'antd';
 import type { Session } from '../../types';
-import './SessionHeader.css';
 
 const { Text } = Typography;
 
@@ -18,6 +17,8 @@ interface SessionHeaderProps {
 }
 
 const SessionHeader = ({ session, onClick, showCounts = true }: SessionHeaderProps) => {
+  const { token } = theme.useToken();
+
   const getStatusColor = () => {
     switch (session.status) {
       case 'running':
@@ -47,11 +48,35 @@ const SessionHeader = ({ session, onClick, showCounts = true }: SessionHeaderPro
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: UI prototype - keyboard events will be added in production
     // biome-ignore lint/a11y/noStaticElementInteractions: UI prototype - proper semantics will be added in production
-    <div className={`session-header-component ${onClick ? 'clickable' : ''}`} onClick={onClick}>
-      <div className="header-main">
-        <Space size={8} align="center">
-          <span className="agent-icon">{getAgentIcon()}</span>
-          <Text strong className="agent-name">
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: token.sizeUnit,
+        padding: token.sizeUnit * 1.5,
+        borderRadius: token.borderRadius,
+        background: token.colorBgContainer,
+        transition: 'all 0.2s',
+        cursor: onClick ? 'pointer' : 'default',
+      }}
+      onMouseEnter={e => {
+        if (onClick) {
+          e.currentTarget.style.background = token.colorBgElevated;
+          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08)';
+        }
+      }}
+      onMouseLeave={e => {
+        if (onClick) {
+          e.currentTarget.style.background = token.colorBgContainer;
+          e.currentTarget.style.boxShadow = 'none';
+        }
+      }}
+      onClick={onClick}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Space size={token.sizeUnit} align="center">
+          <span style={{ fontSize: 20, lineHeight: 1 }}>{getAgentIcon()}</span>
+          <Text strong style={{ textTransform: 'capitalize' }}>
             {session.agent}
           </Text>
           {session.status === 'running' ? (
@@ -61,14 +86,22 @@ const SessionHeader = ({ session, onClick, showCounts = true }: SessionHeaderPro
           )}
         </Space>
 
-        <Space size={4}>
+        <Space size={token.sizeUnit / 2}>
           {isForked && (
-            <Tag icon={<ForkOutlined />} color="cyan" className="genealogy-tag">
+            <Tag
+              icon={<ForkOutlined />}
+              color="cyan"
+              style={{ fontSize: 10, padding: '0 6px', lineHeight: '18px' }}
+            >
               FORK
             </Tag>
           )}
           {isSpawned && (
-            <Tag icon={<BranchesOutlined />} color="purple" className="genealogy-tag">
+            <Tag
+              icon={<BranchesOutlined />}
+              color="purple"
+              style={{ fontSize: 10, padding: '0 6px', lineHeight: '18px' }}
+            >
               SPAWN
             </Tag>
           )}
@@ -76,20 +109,20 @@ const SessionHeader = ({ session, onClick, showCounts = true }: SessionHeaderPro
       </div>
 
       {session.description && (
-        <Text className="session-title" ellipsis={{ tooltip: session.description }}>
+        <Text style={{ fontSize: 14, fontWeight: 500 }} ellipsis={{ tooltip: session.description }}>
           {session.description}
         </Text>
       )}
 
       {showCounts && (
-        <Space size={12} className="session-counts">
-          <Text type="secondary" className="count-item">
+        <Space size={token.sizeUnit * 1.5} style={{ marginTop: token.sizeUnit / 2 }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>
             📋 {session.tasks.length}
           </Text>
-          <Text type="secondary" className="count-item">
+          <Text type="secondary" style={{ fontSize: 12 }}>
             <MessageOutlined /> {session.message_count}
           </Text>
-          <Text type="secondary" className="count-item">
+          <Text type="secondary" style={{ fontSize: 12 }}>
             <ToolOutlined /> {session.tool_use_count}
           </Text>
         </Space>

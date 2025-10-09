@@ -27,7 +27,6 @@ import React from 'react';
 import type { Session, Task } from '../../types';
 import TaskListItem from '../TaskListItem';
 import { ToolIcon } from '../ToolIcon';
-import './SessionCard.css';
 
 const { Text } = Typography;
 
