@@ -13,7 +13,9 @@ import {
   SessionMCPServerRepository,
   SessionRepository,
   sessionMcpServers,
+  TaskRepository,
 } from '@agor/core/db';
+import { type PermissionDecision, PermissionService } from '@agor/core/permissions';
 import { ClaudeTool } from '@agor/core/tools';
 import type { SessionID } from '@agor/core/types';
 import { AuthenticationService, JWTStrategy } from '@feathersjs/authentication';
@@ -386,16 +388,26 @@ async function main() {
   const messagesRepo = new MessagesRepository(db);
   const sessionsRepo = new SessionRepository(db);
   const sessionMCPRepo = new SessionMCPServerRepository(db);
+  const tasksRepo = new TaskRepository(db);
 
-  // Initialize ClaudeTool with repositories, API key, AND app-level messagesService
-  // CRITICAL: Must use app.service('messages') to ensure WebSocket events are emitted
-  // Using the raw service instance bypasses Feathers event publishing
+  // Initialize PermissionService for UI-based permission prompts
+  // Emits WebSocket events via sessions service for permission requests
+  const permissionService = new PermissionService((event, data) => {
+    // Emit events through sessions service for WebSocket broadcasting
+    app.service('sessions').emit(event, data);
+  });
+
+  // Initialize ClaudeTool with repositories, API key, AND app-level service instances
+  // CRITICAL: Must use app.service() to ensure WebSocket events are emitted
+  // Using raw repository instances bypasses Feathers event publishing
   const claudeTool = new ClaudeTool(
     messagesRepo,
     sessionsRepo,
     apiKey,
     app.service('messages'),
-    sessionMCPRepo
+    sessionMCPRepo,
+    permissionService,
+    app.service('tasks') // Use service instead of repo for WebSocket events
   );
 
   // Configure custom route for bulk message creation
@@ -486,25 +498,45 @@ async function main() {
               const endTimestamp = new Date().toISOString();
               const totalMessages = 1 + result.assistantMessageIds.length; // user + assistants
 
-              await tasksService.patch(task.task_id, {
-                status: 'completed',
-                message_range: {
-                  start_index: messageStartIndex,
-                  end_index: messageStartIndex + totalMessages - 1,
-                  start_timestamp: startTimestamp,
-                  end_timestamp: endTimestamp,
-                },
-                tool_use_count: result.assistantMessageIds.reduce((count, _id, index) => {
-                  // First assistant message likely has tools
-                  return count; // TODO: Count actual tools from messages
-                }, 0),
-              });
+              // Check current task status - don't overwrite terminal states
+              // (e.g., 'failed' from denied permission, 'awaiting_permission' still pending)
+              const currentTask = await tasksService.get(task.task_id);
+              if (currentTask.status === 'failed' || currentTask.status === 'awaiting_permission') {
+                console.log(
+                  `⚠️  Task ${task.task_id} already in terminal state: ${currentTask.status} - not marking as completed`
+                );
+
+                // Still update message range for completeness
+                await tasksService.patch(task.task_id, {
+                  message_range: {
+                    start_index: messageStartIndex,
+                    end_index: messageStartIndex + totalMessages - 1,
+                    start_timestamp: startTimestamp,
+                    end_timestamp: endTimestamp,
+                  },
+                });
+              } else {
+                // Safe to mark as completed
+                await tasksService.patch(task.task_id, {
+                  status: 'completed',
+                  message_range: {
+                    start_index: messageStartIndex,
+                    end_index: messageStartIndex + totalMessages - 1,
+                    start_timestamp: startTimestamp,
+                    end_timestamp: endTimestamp,
+                  },
+                  tool_use_count: result.assistantMessageIds.reduce((count, _id, index) => {
+                    // First assistant message likely has tools
+                    return count; // TODO: Count actual tools from messages
+                  }, 0),
+                });
+
+                console.log(`✅ Task ${task.task_id} completed successfully`);
+              }
 
               await sessionsService.patch(id, {
                 message_count: session.message_count + totalMessages,
               });
-
-              console.log(`✅ Task ${task.task_id} completed successfully`);
             } catch (error) {
               console.error(`❌ Error completing task ${task.task_id}:`, error);
               // Mark task as failed
@@ -528,6 +560,21 @@ async function main() {
         taskId: task.task_id,
         status: 'running',
       };
+    },
+  });
+
+  // Permission decision endpoint
+  app.use('/sessions/:id/permission-decision', {
+    async create(data: PermissionDecision, params: RouteParams) {
+      const id = params.route?.id;
+      if (!id) throw new Error('Session ID required');
+      if (!data.requestId) throw new Error('requestId required');
+      if (typeof data.allow !== 'boolean') throw new Error('allow field required');
+
+      // Resolve the pending permission request
+      permissionService.resolvePermission(data);
+
+      return { success: true };
     },
   });
 

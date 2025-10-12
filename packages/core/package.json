@@ -45,6 +45,11 @@
       "types": "./dist/tools/index.d.ts",
       "import": "./dist/tools/index.js",
       "require": "./dist/tools/index.cjs"
+    },
+    "./permissions": {
+      "types": "./dist/permissions/index.d.ts",
+      "import": "./dist/permissions/index.js",
+      "require": "./dist/permissions/index.cjs"
     }
   },
   "scripts": {

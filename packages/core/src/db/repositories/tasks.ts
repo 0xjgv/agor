@@ -69,6 +69,7 @@ export class TaskRepository implements BaseRepository<Task, Partial<Task>> {
         model: task.model ?? 'claude-sonnet-4-5',
         tool_use_count: task.tool_use_count ?? 0,
         report: task.report,
+        permission_request: task.permission_request, // Permission state for UI approval flow
       },
     };
   }

@@ -6,11 +6,17 @@
  */
 
 import { execSync } from 'node:child_process';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import { query } from '@anthropic-ai/claude-agent-sdk';
+import type { HookJSONOutput, PreToolUseHookInput } from '@anthropic-ai/claude-agent-sdk/sdkTypes';
+import { generateId } from '../../db/ids';
 import type { MessagesRepository } from '../../db/repositories/messages';
 import type { SessionMCPServerRepository } from '../../db/repositories/session-mcp-servers';
 import type { SessionRepository } from '../../db/repositories/sessions';
-import type { MCPServersConfig, Message, SessionID } from '../../types';
+import type { PermissionService } from '../../permissions/permission-service';
+import type { MCPServersConfig, Message, SessionID, TaskID } from '../../types';
+import type { TasksService } from './claude-tool';
 
 /**
  * Get path to Claude Code executable
@@ -70,16 +76,233 @@ export class ClaudePromptService {
     private messagesRepo: MessagesRepository,
     private sessionsRepo: SessionRepository,
     private apiKey?: string,
-    private sessionMCPRepo?: SessionMCPServerRepository
+    private sessionMCPRepo?: SessionMCPServerRepository,
+    private permissionService?: PermissionService,
+    private tasksService?: TasksService
   ) {
     // No client initialization needed - Agent SDK is stateless
+  }
+
+  /**
+   * Create PreToolUse hook for permission handling
+   * @private
+   */
+  private createPreToolUseHook(sessionId: SessionID, taskId: TaskID) {
+    return async (
+      input: PreToolUseHookInput,
+      toolUseID: string | undefined,
+      options: { signal: AbortSignal }
+    ): Promise<HookJSONOutput> => {
+      console.log('');
+      console.log('═══════════════════════════════════════════════════════════');
+      console.log('🔥🔥🔥 PreToolUse HOOK FIRED! 🔥🔥🔥');
+      console.log(`   Tool Name: ${input.tool_name}`);
+      console.log(`   Task ID: ${taskId}`);
+      console.log(`   Tool Use ID: ${toolUseID}`);
+      console.log(`   Tool Input: ${JSON.stringify(input.tool_input, null, 2)}`);
+      console.log('═══════════════════════════════════════════════════════════');
+      console.log('');
+
+      // If no permission service or tasks service, allow by default
+      if (!this.permissionService || !this.tasksService) {
+        console.log(`⚠️  No permission service or tasks service, allowing by default`);
+        return {};
+      }
+
+      try {
+        // Check session-specific permission overrides first
+        const session = await this.sessionsRepo.findById(sessionId);
+        if (session?.data?.permission_config?.allowedTools?.includes(input.tool_name)) {
+          console.log(`🛡️  Permission: ${input.tool_name} auto-allowed by session config`);
+          return {
+            hookSpecificOutput: {
+              hookEventName: 'PreToolUse',
+              permissionDecision: 'allow',
+              permissionDecisionReason: 'Allowed by session config',
+            },
+          };
+        }
+
+        // Generate request ID
+        const requestId = generateId();
+        const timestamp = new Date().toISOString();
+
+        // Update task status to 'awaiting_permission' via FeathersJS service (emits WebSocket)
+        console.log(`📝 Updating task ${taskId} to awaiting_permission status...`);
+        try {
+          await this.tasksService.patch(taskId, {
+            status: 'awaiting_permission',
+            permission_request: {
+              request_id: requestId,
+              tool_name: input.tool_name,
+              tool_input: input.tool_input as Record<string, unknown>,
+              tool_use_id: toolUseID,
+              requested_at: timestamp,
+            },
+          });
+          console.log(`✅ Task updated successfully via FeathersJS (WebSocket event emitted)`);
+        } catch (error) {
+          console.error(`❌ FAILED to update task:`, error);
+          throw error; // Re-throw to see if hook catches it
+        }
+
+        console.log(`🛡️  Task ${taskId} now awaiting permission for ${input.tool_name}`);
+
+        // Emit WebSocket event for UI (broadcasts to ALL viewers)
+        console.log(`📡 Emitting WebSocket permission request event...`);
+        console.log(`   Session ID: ${sessionId}`);
+        console.log(`   Request ID: ${requestId}`);
+        console.log(`   Tool: ${input.tool_name}`);
+        this.permissionService.emitRequest(sessionId, {
+          requestId,
+          taskId,
+          toolName: input.tool_name,
+          toolInput: input.tool_input as Record<string, unknown>,
+          toolUseID,
+          timestamp,
+        });
+        console.log(`✅ WebSocket event emitted`);
+
+        // Wait for UI decision (Promise pauses SDK execution)
+        console.log(`⏳ Waiting for user decision via UI...`);
+        console.log(`   Using AbortSignal: ${options.signal ? 'present' : 'missing'}`);
+        const decision = await this.permissionService.waitForDecision(
+          requestId,
+          taskId,
+          options.signal
+        );
+        console.log(
+          `✅ Decision received: ${decision.allow ? 'ALLOW' : 'DENY'} by user ${decision.decidedBy}`
+        );
+
+        // Update task with approval info and resume status via FeathersJS service
+        // IMPORTANT: Must send full permission_request object, not dot notation
+        // Dot notation works in DB but doesn't broadcast properly via WebSocket
+        const currentTask = await this.tasksService.get(taskId);
+        await this.tasksService.patch(taskId, {
+          status: decision.allow ? 'running' : 'failed',
+          permission_request: {
+            ...currentTask.permission_request,
+            approved_by: decision.decidedBy,
+            approved_at: new Date().toISOString(),
+          },
+        });
+
+        console.log(
+          `🛡️  Task ${taskId} ${decision.allow ? 'approved' : 'denied'} by user ${decision.decidedBy}`
+        );
+
+        // Persist decision if user clicked "Remember"
+        if (decision.remember && session) {
+          if (decision.scope === 'session') {
+            // Update session-level permissions in database
+            const currentAllowed = session.data?.permission_config?.allowedTools || [];
+            await this.sessionsRepo.update(sessionId, {
+              'data.permission_config.allowedTools': [...currentAllowed, input.tool_name],
+            });
+            console.log(`🛡️  Saved ${input.tool_name} to session ${sessionId} permissions`);
+          } else if (decision.scope === 'project') {
+            // Update project-level permissions in .claude/settings.json
+            await this.updateProjectSettings(session.repo.cwd, {
+              allowTools: [input.tool_name],
+            });
+            console.log(`🛡️  Saved ${input.tool_name} to project permissions`);
+          }
+        }
+
+        return {
+          hookSpecificOutput: {
+            hookEventName: 'PreToolUse',
+            permissionDecision: decision.allow ? 'allow' : 'deny',
+            permissionDecisionReason: decision.reason,
+          },
+        };
+      } catch (error) {
+        // On any error in the permission flow, mark task as failed
+        console.error('❌ PreToolUse hook error:', error);
+
+        try {
+          await this.tasksService.patch(taskId, {
+            status: 'failed',
+            report: {
+              error: error instanceof Error ? error.message : String(error),
+              timestamp: new Date().toISOString(),
+            },
+          });
+          console.log(`❌ Task ${taskId} marked as failed due to hook error`);
+        } catch (updateError) {
+          console.error(`❌ Failed to update task status to failed:`, updateError);
+        }
+
+        // Return deny to SDK so tool doesn't execute
+        return {
+          hookSpecificOutput: {
+            hookEventName: 'PreToolUse',
+            permissionDecision: 'deny',
+            permissionDecisionReason: `Permission hook failed: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        };
+      }
+    };
+  }
+
+  /**
+   * Update project-level permissions in .claude/settings.json
+   * @private
+   */
+  private async updateProjectSettings(
+    cwd: string,
+    changes: {
+      allowTools?: string[];
+      denyTools?: string[];
+    }
+  ) {
+    const settingsPath = path.join(cwd, '.claude', 'settings.json');
+
+    // Read existing settings or create default structure
+    // biome-ignore lint/suspicious/noExplicitAny: Settings JSON structure is dynamic
+    let settings: any = {};
+    try {
+      const content = await fs.readFile(settingsPath, 'utf-8');
+      settings = JSON.parse(content);
+    } catch {
+      // File doesn't exist, create default structure
+      settings = { permissions: { allow: { tools: [] } } };
+    }
+
+    // Ensure permissions structure exists
+    if (!settings.permissions) settings.permissions = {};
+    if (!settings.permissions.allow) settings.permissions.allow = {};
+    if (!settings.permissions.allow.tools) settings.permissions.allow.tools = [];
+
+    // Apply changes
+    if (changes.allowTools) {
+      settings.permissions.allow.tools = [
+        ...new Set([...settings.permissions.allow.tools, ...changes.allowTools]),
+      ];
+    }
+    if (changes.denyTools) {
+      if (!settings.permissions.deny) settings.permissions.deny = [];
+      settings.permissions.deny = [
+        ...new Set([...settings.permissions.deny, ...changes.denyTools]),
+      ];
+    }
+
+    // Ensure .claude directory exists
+    const claudeDir = path.join(cwd, '.claude');
+    try {
+      await fs.mkdir(claudeDir, { recursive: true });
+    } catch {}
+
+    // Write updated settings
+    await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2));
   }
 
   /**
    * Load session and initialize query
    * @private
    */
-  private async setupQuery(sessionId: SessionID, prompt: string, resume = true) {
+  private async setupQuery(sessionId: SessionID, prompt: string, taskId?: TaskID, resume = true) {
     const session = await this.sessionsRepo.findById(sessionId);
     if (!session) {
       throw new Error(`Session not found: ${sessionId}`);
@@ -95,10 +318,30 @@ export class ClaudePromptService {
     const options: Record<string, unknown> = {
       cwd: session.repo.cwd,
       systemPrompt: { type: 'preset', preset: 'claude_code' },
-      settingSources: ['project'], // Auto-loads CLAUDE.md
+      settingSources: ['user', 'project'], // Load user + project permissions, auto-loads CLAUDE.md
       model: 'claude-sonnet-4-5-20250929',
       pathToClaudeCodeExecutable: getClaudeCodePath(),
+      // Allow access to common directories outside CWD (e.g., /tmp)
+      additionalDirectories: ['/tmp', '/var/tmp'],
+      // TODO: Re-enable once we confirm hook can complete task update
+      // permissionMode: 'bypassPermissions',
     };
+
+    // Add PreToolUse hook if permission service is available and taskId provided
+    if (this.permissionService && taskId) {
+      console.log(`🛡️  Registering PreToolUse hook for task ${taskId}`);
+      options.hooks = {
+        PreToolUse: [
+          {
+            hooks: [this.createPreToolUseHook(sessionId, taskId)],
+          },
+        ],
+      };
+    } else {
+      console.log(
+        `⚠️  PreToolUse hook NOT registered - permissionService: ${!!this.permissionService}, taskId: ${taskId}`
+      );
+    }
 
     // Add optional apiKey if provided
     if (this.apiKey || process.env.ANTHROPIC_API_KEY) {
@@ -108,6 +351,11 @@ export class ClaudePromptService {
     // Add optional resume if session exists
     if (resume && session.agent_session_id) {
       options.resume = session.agent_session_id;
+      console.log(`📚 Resuming Agent SDK session: ${session.agent_session_id}`);
+    } else {
+      console.log(
+        `⚠️  NOT resuming - resume: ${resume}, agent_session_id: ${session.agent_session_id}`
+      );
     }
 
     // Fetch and configure MCP servers for this session
@@ -269,11 +517,13 @@ export class ClaudePromptService {
    *
    * @param sessionId - Session to prompt
    * @param prompt - User prompt
+   * @param taskId - Optional task ID for permission tracking
    * @returns Async generator yielding assistant messages with SDK session ID
    */
   async *promptSessionStreaming(
     sessionId: SessionID,
-    prompt: string
+    prompt: string,
+    taskId?: TaskID
   ): AsyncGenerator<{
     content: Array<{
       type: string;
@@ -285,7 +535,7 @@ export class ClaudePromptService {
     toolUses?: Array<{ id: string; name: string; input: Record<string, unknown> }>;
     agentSessionId?: string;
   }> {
-    const result = await this.setupQuery(sessionId, prompt, true);
+    const result = await this.setupQuery(sessionId, prompt, taskId, true);
 
     // Collect and yield assistant messages progressively
     console.log('📥 Receiving messages from Agent SDK...');

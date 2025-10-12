@@ -2,7 +2,7 @@
 import type { SessionID, TaskID } from './id';
 import type { ReportPath, ReportTemplate } from './report';
 
-export type TaskStatus = 'created' | 'running' | 'completed' | 'failed';
+export type TaskStatus = 'created' | 'running' | 'awaiting_permission' | 'completed' | 'failed';
 
 export interface Task {
   /** Unique task identifier (UUIDv7) */
@@ -52,6 +52,18 @@ export interface Task {
     path: ReportPath;
     template: ReportTemplate;
     generated_at: string;
+  };
+
+  // Permission request (when task is awaiting user approval)
+  permission_request?: {
+    request_id: string;
+    tool_name: string;
+    tool_input: Record<string, unknown>;
+    tool_use_id?: string;
+    requested_at: string;
+    // Optional: Track who approved (for audit trail)
+    approved_by?: string; // userId
+    approved_at?: string;
   };
 
   created_at: string;

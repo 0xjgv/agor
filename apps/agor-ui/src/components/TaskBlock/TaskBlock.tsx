@@ -18,6 +18,7 @@ import {
   FileTextOutlined,
   GithubOutlined,
   LoadingOutlined,
+  LockOutlined,
   MessageOutlined,
   RightOutlined,
   ToolOutlined,
@@ -28,6 +29,7 @@ import { useMemo } from 'react';
 import { AgentChain } from '../AgentChain';
 import { MessageBlock } from '../MessageBlock';
 import { CreatedByTag } from '../metadata/CreatedByTag';
+import { PermissionRequestBlock } from '../PermissionRequestBlock';
 
 const { Text, Paragraph } = Typography;
 
@@ -42,6 +44,13 @@ interface TaskBlockProps {
   users?: User[];
   currentUserId?: string;
   defaultExpanded?: boolean;
+  sessionId?: string | null;
+  onPermissionDecision?: (
+    sessionId: string,
+    requestId: string,
+    taskId: string,
+    allow: boolean
+  ) => void;
 }
 
 /**
@@ -121,6 +130,8 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({
   users = [],
   currentUserId,
   defaultExpanded = false,
+  sessionId,
+  onPermissionDecision,
 }) => {
   const { token } = theme.useToken();
 
@@ -135,6 +146,8 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({
         return (
           <Spin indicator={<LoadingOutlined spin style={{ fontSize: 16, color: '#1890ff' }} />} />
         );
+      case 'awaiting_permission':
+        return <LockOutlined style={{ color: '#faad14' }} />;
       case 'failed':
         return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />;
       default:
@@ -148,6 +161,8 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({
         return 'success';
       case 'running':
         return 'processing';
+      case 'awaiting_permission':
+        return 'warning';
       case 'failed':
         return 'error';
       default:
@@ -258,6 +273,34 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({
                   }
                   return null;
                 })
+              )}
+
+              {/* Show permission request (active or historical) */}
+              {task.permission_request && (
+                <PermissionRequestBlock
+                  task={task}
+                  isActive={task.status === 'awaiting_permission'}
+                  onApprove={taskId => {
+                    if (task.permission_request && sessionId) {
+                      onPermissionDecision?.(
+                        sessionId,
+                        task.permission_request.request_id,
+                        taskId,
+                        true
+                      );
+                    }
+                  }}
+                  onDeny={taskId => {
+                    if (task.permission_request && sessionId) {
+                      onPermissionDecision?.(
+                        sessionId,
+                        task.permission_request.request_id,
+                        taskId,
+                        false
+                      );
+                    }
+                  }}
+                />
               )}
 
               {/* Show commit message if available */}

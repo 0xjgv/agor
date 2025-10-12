@@ -14,6 +14,8 @@ import { generateId } from '../../db/ids';
 import type { MessagesRepository } from '../../db/repositories/messages';
 import type { SessionMCPServerRepository } from '../../db/repositories/session-mcp-servers';
 import type { SessionRepository } from '../../db/repositories/sessions';
+import type { TaskRepository } from '../../db/repositories/tasks';
+import type { PermissionService } from '../../permissions/permission-service';
 import type { Message, MessageID, SessionID, TaskID, ToolUse } from '../../types';
 import type { ImportOptions, ITool, SessionData, ToolCapabilities } from '../base';
 import { loadClaudeSession } from './import/load-session';
@@ -28,6 +30,17 @@ export interface MessagesService {
   create(data: Partial<Message>): Promise<Message>;
 }
 
+/**
+ * Service interface for updating tasks via FeathersJS
+ * This ensures WebSocket events are emitted when tasks are updated
+ */
+export interface TasksService {
+  // biome-ignore lint/suspicious/noExplicitAny: FeathersJS service returns dynamic task data
+  get(id: string): Promise<any>;
+  // biome-ignore lint/suspicious/noExplicitAny: FeathersJS service accepts partial task updates
+  patch(id: string, data: Partial<any>): Promise<any>;
+}
+
 export class ClaudeTool implements ITool {
   readonly toolType = 'claude-code' as const;
   readonly name = 'Claude Code';
@@ -39,14 +52,18 @@ export class ClaudeTool implements ITool {
     private sessionsRepo?: SessionRepository,
     private apiKey?: string,
     private messagesService?: MessagesService,
-    private sessionMCPRepo?: SessionMCPServerRepository
+    private sessionMCPRepo?: SessionMCPServerRepository,
+    private permissionService?: PermissionService,
+    private tasksService?: TasksService
   ) {
     if (messagesRepo && sessionsRepo) {
       this.promptService = new ClaudePromptService(
         messagesRepo,
         sessionsRepo,
         apiKey,
-        sessionMCPRepo
+        sessionMCPRepo,
+        permissionService,
+        tasksService
       );
     }
   }
@@ -151,7 +168,11 @@ export class ClaudeTool implements ITool {
     const outputTokens = 0;
     let capturedAgentSessionId: string | undefined;
 
-    for await (const assistantMsg of this.promptService.promptSessionStreaming(sessionId, prompt)) {
+    for await (const assistantMsg of this.promptService.promptSessionStreaming(
+      sessionId,
+      prompt,
+      taskId
+    )) {
       // Capture Agent SDK session_id from first message
       if (!capturedAgentSessionId && assistantMsg.agentSessionId) {
         capturedAgentSessionId = assistantMsg.agentSessionId;

@@ -132,6 +132,34 @@ export const App: React.FC<AppProps> = ({
     }
   };
 
+  const handlePermissionDecision = async (
+    sessionId: string,
+    requestId: string,
+    taskId: string,
+    allow: boolean
+  ) => {
+    if (!client) return;
+
+    try {
+      console.log(`📋 Permission decision: ${allow ? 'ALLOW' : 'DENY'} for task ${taskId}`);
+
+      // Call the permission decision endpoint
+      await client.service(`sessions/${sessionId}/permission-decision`).create({
+        requestId,
+        taskId,
+        allow,
+        reason: allow ? 'Approved by user' : 'Denied by user',
+        remember: false,
+        scope: 'once',
+        decidedBy: user?.user_id || 'anonymous',
+      });
+
+      console.log(`✅ Permission decision sent successfully`);
+    } catch (error) {
+      console.error('❌ Failed to send permission decision:', error);
+    }
+  };
+
   const selectedSession = sessions.find(s => s.session_id === selectedSessionId) || null;
   const selectedSessionTasks = selectedSessionId ? tasks[selectedSessionId] || [] : [];
   const currentBoard = boards.find(b => b.board_id === currentBoardId);
@@ -193,6 +221,7 @@ export const App: React.FC<AppProps> = ({
         onSendPrompt={handleSendPrompt}
         onFork={handleFork}
         onSubtask={handleSubtask}
+        onPermissionDecision={handlePermissionDecision}
         onOpenSettings={sessionId => {
           console.log('Open settings for session from drawer:', sessionId);
           // TODO: Programmatically trigger SessionCard modal

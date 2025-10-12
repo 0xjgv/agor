@@ -36,6 +36,7 @@ export const sessions = sqliteTable(
     data: text('data', { mode: 'json' })
       .$type<{
         agent_version?: string;
+        agent_session_id?: string; // Agent SDK session ID for conversation continuity
         description?: string;
 
         // Repository context
@@ -90,7 +91,7 @@ export const tasks = sqliteTable(
     created_at: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
     completed_at: integer('completed_at', { mode: 'timestamp_ms' }),
     status: text('status', {
-      enum: ['created', 'running', 'completed', 'failed'],
+      enum: ['created', 'running', 'awaiting_permission', 'completed', 'failed'],
     }).notNull(),
 
     // User attribution
@@ -108,6 +109,7 @@ export const tasks = sqliteTable(
         tool_use_count: number;
 
         report?: Task['report'];
+        permission_request?: Task['permission_request'];
       }>()
       .notNull(),
   },

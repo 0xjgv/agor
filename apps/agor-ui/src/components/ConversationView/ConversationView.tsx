@@ -44,6 +44,16 @@ export interface ConversationViewProps {
    * Callback to expose scroll-to-bottom function to parent
    */
   onScrollRef?: (scrollToBottom: () => void) => void;
+
+  /**
+   * Permission decision handler
+   */
+  onPermissionDecision?: (
+    sessionId: string,
+    requestId: string,
+    taskId: string,
+    allow: boolean
+  ) => void;
 }
 
 export const ConversationView: React.FC<ConversationViewProps> = ({
@@ -52,6 +62,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   users = [],
   currentUserId,
   onScrollRef,
+  onPermissionDecision,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -145,6 +156,8 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           currentUserId={currentUserId}
           // Expand only the last task by default
           defaultExpanded={index === taskWithMessages.length - 1}
+          sessionId={sessionId}
+          onPermissionDecision={onPermissionDecision}
         />
       ))}
     </div>

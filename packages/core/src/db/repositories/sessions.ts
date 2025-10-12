@@ -109,6 +109,7 @@ export class SessionRepository implements BaseRepository<Session, Partial<Sessio
       forked_from_session_id: session.genealogy?.forked_from_session_id ?? null,
       data: {
         agent_version: session.agent_version,
+        agent_session_id: session.agent_session_id, // Preserve Agent SDK session ID
         description: session.description,
         repo,
         git_state: session.git_state ?? {

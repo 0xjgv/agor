@@ -4,11 +4,42 @@
 
 This document explores how to implement a permission/approval system in Agor that recreates the Claude Code CLI experience using the Claude Agent SDK's hook system.
 
-## Research: SDK Permission Mechanisms
+**Key Insight:** The SDK already has a complete permission system built-in. We can piggyback on it using `settingSources` and `PreToolUse` hooks.
+
+## SDK Permission System (Built-in)
+
+### Settings Files
+
+The Agent SDK reads permissions from Claude Code's standard config files:
+
+1. **User settings:** `~/.claude/settings.json` (global, shared across all projects)
+2. **Project settings:** `{cwd}/.claude/settings.json` (shared with team, checked into repo)
+3. **Local settings:** `{cwd}/.claude/settings.local.json` (personal, gitignored)
+
+**Load settings with:**
+
+```typescript
+settingSources: ['user', 'project', 'local']; // Precedence: local > project > user
+```
+
+**Settings format:**
+
+```json
+{
+  "permissions": {
+    "allow": {
+      "tools": ["Read", "Glob", "Grep"],
+      "bash_commands": ["ls", "pwd", "git status"]
+    },
+    "deny": ["WebFetch", "Bash(rm -rf:*)"],
+    "ask": ["Bash(git push:*)", "Write(./production/**)"]
+  }
+}
+```
 
 ### PreToolUse Hook
 
-The Claude Agent SDK provides a `PreToolUse` hook that intercepts tool execution before it runs:
+The SDK provides a hook that fires **before** Claude uses a tool (before any "no permission" message):
 
 ```typescript
 type PreToolUseHookInput = BaseHookInput & {
@@ -34,11 +65,15 @@ hookSpecificOutput: {
 }
 ```
 
-### Permission Modes (from Claude Code CLI)
+**Critical:** Hook can return a Promise that pauses execution until resolved. This enables async permission requests to the UI!
 
-1. **Normal Mode** - Requires user confirmation for each action
-2. **Auto-Accept Mode** - Eliminates confirmation prompts (`shift+tab` to toggle, or `--dangerously-skip-permissions` flag)
-3. **Per-Tool Configuration** - Allow/deny lists for specific tools
+### Permission Evaluation Order
+
+1. **PreToolUse Hook** (Agor's custom logic)
+2. **Deny rules** (from settings.json)
+3. **Allow rules** (from settings.json)
+4. **Ask rules** (prompts user in CLI or via hook)
+5. **Permission mode** (auto-accept or normal)
 
 ### Available Hook Types
 
@@ -50,71 +85,140 @@ hookSpecificOutput: {
 - `Stop` / `SubagentStop` - Interruption handling
 - `PreCompact` - Before context compaction
 
-### SDK Configuration Options
+## Agor Implementation Strategy
 
-- `allowedTools`: Explicitly permit specific tools
-- `disallowedTools`: Block specific tools
-- `permissionMode`: Set overall permission strategy
+### Design Decision: Permission Scopes
 
-## Implementation Architecture
+**Agor supports TWO permission scopes:**
 
-### Phase 1: Backend Hook Infrastructure
+1. **Session scope** - Stored in Agor database (`session.data.permission_config`)
+   - Use case: Temporary/experimental sessions with relaxed permissions
+   - Lifetime: Session-specific, doesn't affect other sessions
 
-#### 1. Add Hook Support to ClaudePromptService
+2. **Project scope** - Written to `{cwd}/.claude/settings.json`
+   - Use case: Shared team settings (checked into git)
+   - Lifetime: Persistent across all sessions in this project
+
+**We DON'T touch global scope** (`~/.claude/settings.json`) - that's Claude CLI's territory.
+
+### Phase 1: Quick Win (5 minutes)
+
+**Enable user settings loading:**
+
+```typescript
+// packages/core/src/tools/claude/prompt-service.ts
+settingSources: ['user', 'project']; // Was: ['project']
+```
+
+**Result:** Agor immediately respects user's existing Claude Code permissions. Zero additional code needed.
+
+**Limitation:** Permissions prompts happen in terminal (daemon stdout), not in UI.
+
+### Phase 2: UI Permission Modal (Recommended)
+
+#### 1. Add PreToolUse Hook to ClaudePromptService
 
 **File:** `packages/core/src/tools/claude/prompt-service.ts`
 
-**Changes:**
-
-- Add `hooks` option to `setupQuery()` method
-- Create `PreToolUseHookCallback` type matching SDK signature
-- Pass custom hook that emits WebSocket events when tools need approval
-
-**Hook Implementation:**
-
 ```typescript
-const preToolUseHook = async (
-  input: PreToolUseHookInput,
-  toolUseID: string | undefined,
-  options: { signal: AbortSignal }
-): Promise<HookJSONOutput> => {
-  // Emit WebSocket event: permission:request
-  const requestId = generateId();
-  await permissionService.requestPermission(sessionId, {
-    requestId,
-    toolName: input.tool_name,
-    toolInput: input.tool_input,
-    toolUseID,
-  });
+private async setupQuery(sessionId: SessionID, prompt: string, resume = true) {
+  // ... existing setup ...
 
-  // Wait for UI response (Promise resolves when user decides)
-  const decision = await permissionService.waitForDecision(requestId, options.signal);
-
-  return {
-    hookSpecificOutput: {
-      hookEventName: 'PreToolUse',
-      permissionDecision: decision.allow ? 'allow' : 'deny',
-      permissionDecisionReason: decision.reason,
+  const options: Record<string, unknown> = {
+    cwd: session.repo.cwd,
+    settingSources: ['user', 'project'],  // Load existing permissions
+    hooks: {
+      PreToolUse: this.createPreToolUseHook(sessionId)  // Add custom hook
     },
   };
-};
+
+  return query({ prompt, options });
+}
+
+private createPreToolUseHook(sessionId: SessionID) {
+  return async (
+    input: PreToolUseHookInput,
+    toolUseID: string | undefined,
+    options: { signal: AbortSignal }
+  ): Promise<HookJSONOutput> => {
+    // Check session-specific overrides first
+    const session = await this.sessionsRepo.findById(sessionId);
+    if (session.data?.permission_config?.allowedTools?.includes(input.tool_name)) {
+      return {
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          permissionDecision: 'allow',
+          permissionDecisionReason: 'Allowed by session config'
+        }
+      };
+    }
+
+    // Emit WebSocket event for UI
+    const requestId = generateId();
+    this.permissionService.emitRequest(sessionId, {
+      requestId,
+      toolName: input.tool_name,
+      toolInput: input.tool_input,
+      toolUseID,
+      timestamp: new Date().toISOString()
+    });
+
+    // Wait for UI decision (Promise pauses SDK execution)
+    const decision = await this.permissionService.waitForDecision(
+      requestId,
+      options.signal  // Respects cancellation
+    );
+
+    // Persist decision if user clicked "Remember"
+    if (decision.remember) {
+      if (decision.scope === 'session') {
+        await this.sessionsRepo.update(sessionId, {
+          'data.permission_config.allowedTools': [
+            ...(session.data?.permission_config?.allowedTools || []),
+            input.tool_name
+          ]
+        });
+      } else if (decision.scope === 'project') {
+        await this.updateProjectSettings(session.repo.cwd, {
+          allowTools: [input.tool_name]
+        });
+      }
+    }
+
+    return {
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: decision.allow ? 'allow' : 'deny',
+        permissionDecisionReason: decision.reason
+      }
+    };
+  };
+}
+
+private async updateProjectSettings(cwd: string, changes: {
+  allowTools?: string[];
+  denyTools?: string[];
+}) {
+  const settingsPath = path.join(cwd, '.claude', 'settings.json');
+  const settings = JSON.parse(await fs.readFile(settingsPath, 'utf-8'));
+
+  if (!settings.permissions) settings.permissions = { allow: { tools: [] } };
+  if (changes.allowTools) {
+    settings.permissions.allow.tools = [
+      ...new Set([...settings.permissions.allow.tools, ...changes.allowTools])
+    ];
+  }
+
+  await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2));
+}
 ```
 
 #### 2. Create Permission Service
 
-**File:** `packages/core/src/tools/claude/permission-service.ts`
-
-**Responsibilities:**
-
-- Manage pending permission requests (in-memory map)
-- Emit WebSocket events for permission requests
-- Wait for and resolve permission decisions
-- Handle timeout/cancellation via AbortSignal
-
-**Types:**
+**File:** `packages/core/src/permissions/permission-service.ts`
 
 ```typescript
-interface PermissionRequest {
+export interface PermissionRequest {
   requestId: string;
   sessionId: SessionID;
   toolName: string;
@@ -123,30 +227,68 @@ interface PermissionRequest {
   timestamp: string;
 }
 
-interface PermissionDecision {
+export interface PermissionDecision {
   requestId: string;
   allow: boolean;
   reason?: string;
   remember: boolean;
-  scope: 'once' | 'session' | 'global';
+  scope: 'once' | 'session' | 'project'; // 'once' = don't save, 'session' = db, 'project' = .claude/settings.json
 }
-```
 
-**API:**
+export class PermissionService {
+  private pendingRequests = new Map<
+    string,
+    {
+      resolve: (decision: PermissionDecision) => void;
+      timeout: NodeJS.Timeout;
+    }
+  >();
 
-```typescript
-class PermissionService {
-  // Emit request and return promise that resolves when user decides
-  async requestPermission(
-    sessionId: SessionID,
-    request: Omit<PermissionRequest, 'sessionId' | 'timestamp'>
-  ): Promise<void>;
+  constructor(private emitEvent: (event: string, data: unknown) => void) {}
 
-  // Wait for decision (used by hook)
-  async waitForDecision(requestId: string, signal: AbortSignal): Promise<PermissionDecision>;
+  emitRequest(sessionId: SessionID, request: Omit<PermissionRequest, 'sessionId'>) {
+    const fullRequest: PermissionRequest = { ...request, sessionId };
+    this.emitEvent('permission:request', fullRequest);
+  }
 
-  // Resolve pending request (called by daemon when UI responds)
-  resolvePermission(decision: PermissionDecision): void;
+  waitForDecision(requestId: string, signal: AbortSignal): Promise<PermissionDecision> {
+    return new Promise(resolve => {
+      // Handle cancellation
+      signal.addEventListener('abort', () => {
+        this.pendingRequests.delete(requestId);
+        resolve({
+          requestId,
+          allow: false,
+          reason: 'Cancelled',
+          remember: false,
+          scope: 'once',
+        });
+      });
+
+      // Timeout after 60 seconds (fail-safe)
+      const timeout = setTimeout(() => {
+        this.pendingRequests.delete(requestId);
+        resolve({
+          requestId,
+          allow: false,
+          reason: 'Timeout',
+          remember: false,
+          scope: 'once',
+        });
+      }, 60000);
+
+      this.pendingRequests.set(requestId, { resolve, timeout });
+    });
+  }
+
+  resolvePermission(decision: PermissionDecision) {
+    const pending = this.pendingRequests.get(decision.requestId);
+    if (pending) {
+      clearTimeout(pending.timeout);
+      pending.resolve(decision);
+      this.pendingRequests.delete(decision.requestId);
+    }
+  }
 }
 ```
 
@@ -154,21 +296,43 @@ class PermissionService {
 
 **File:** `apps/agor-daemon/src/services/sessions.ts`
 
-**Custom Method:**
-
 ```typescript
-// POST /sessions/:id/permission-decision
-async permissionDecision(id: SessionID, data: PermissionDecision) {
-  // Resolve the pending permission request
-  permissionService.resolvePermission(data);
-  return { success: true };
+export class SessionService {
+  private permissionService: PermissionService;
+
+  constructor(app: Application) {
+    // Initialize permission service with WebSocket emitter
+    this.permissionService = new PermissionService((event, data) =>
+      app.service('sessions').emit(event, data)
+    );
+  }
+
+  /**
+   * POST /sessions/:id/permission-decision
+   */
+  async permissionDecision(id: SessionID, data: PermissionDecision) {
+    this.permissionService.resolvePermission(data);
+    return { success: true };
+  }
+
+  // Pass permissionService to ClaudePromptService when executing
+  async prompt(id: SessionID, data: { prompt: string }) {
+    const claudeTool = new ClaudeTool(
+      messagesRepo,
+      sessionsRepo,
+      apiKey,
+      messagesService,
+      sessionMCPRepo,
+      this.permissionService // <-- Add this!
+    );
+    return await claudeTool.executePrompt(id, data.prompt);
+  }
 }
 ```
 
-**WebSocket Event:**
+**WebSocket Event Emitted:**
 
 ```typescript
-// Emitted when permission is requested
 {
   type: 'permission:request',
   sessionId: string,
@@ -179,278 +343,234 @@ async permissionDecision(id: SessionID, data: PermissionDecision) {
 }
 ```
 
-### Phase 2: UI Permission Prompt Component
+### Phase 3: UI Components
 
-#### 4. Create PermissionModal Component
+#### 4. PermissionModal Component
 
-**File:** `apps/agor-ui/src/components/PermissionModal/PermissionModal.tsx`
+**File:** `apps/agor-ui/src/components/PermissionModal.tsx`
 
-**UI Elements:**
+```tsx
+interface PermissionModalProps {
+  request: PermissionRequest;
+  onDecide: (allow: boolean, remember: boolean, scope: 'once' | 'session' | 'project') => void;
+}
 
-- **Header:** "🛡️ Permission Required"
-- **Session Context:** Which session is requesting (session ID, agent icon)
-- **Tool Info:** Tool name displayed prominently
-- **Tool Input:** Formatted JSON/code display of parameters
-- **Action Buttons:**
-  - **Allow Once** (primary button)
-  - **Always Allow This Tool** (with scope dropdown: session/global)
-  - **Deny** (danger button)
-- **Remember Checkbox:** "Remember my decision for this session"
-- **Reason Field:** Optional text input if denying
+export function PermissionModal({ request, onDecide }: PermissionModalProps) {
+  return (
+    <Modal open title="🛡️ Permission Required" onCancel={() => onDecide(false, false, 'once')}>
+      <Space direction="vertical" style={{ width: '100%' }}>
+        <Text type="secondary">Session: {request.sessionId.slice(0, 8)}</Text>
+        <Title level={4}>{request.toolName}</Title>
 
-**Example:**
+        {/* Format tool input nicely */}
+        <div style={{ background: '#f5f5f5', padding: 12, borderRadius: 4 }}>
+          <pre>{JSON.stringify(request.toolInput, null, 2)}</pre>
+        </div>
 
+        {/* Action buttons */}
+        <Space>
+          <Button danger onClick={() => onDecide(false, false, 'once')}>
+            Deny
+          </Button>
+          <Button type="default" onClick={() => onDecide(true, true, 'session')}>
+            Allow for Session
+          </Button>
+          <Button type="default" onClick={() => onDecide(true, true, 'project')}>
+            Allow for Project
+          </Button>
+          <Button type="primary" onClick={() => onDecide(true, false, 'once')}>
+            Allow Once
+          </Button>
+        </Space>
+      </Space>
+    </Modal>
+  );
+}
 ```
-┌─────────────────────────────────────────┐
-│ 🛡️ Permission Required                  │
-├─────────────────────────────────────────┤
-│ Session: claude-code (0199b856)         │
-│                                          │
-│ Tool: Bash                               │
-│                                          │
-│ Command:                                 │
-│ ┌─────────────────────────────────────┐ │
-│ │ git commit -m "Add feature X"       │ │
-│ │                                     │ │
-│ │ Working Directory: /path/to/repo   │ │
-│ └─────────────────────────────────────┘ │
-│                                          │
-│ ☐ Remember for this session             │
-│                                          │
-│ [ Deny ]  [ Always Allow ]  [ Allow ] │
-└─────────────────────────────────────────┘
-```
 
-#### 5. Add Permission State Management
+#### 5. usePermissions Hook
 
 **File:** `apps/agor-ui/src/hooks/usePermissions.ts`
 
-**Hook API:**
-
 ```typescript
-function usePermissions(client: AgorClient | null) {
-  // Current pending request (null if none)
+export function usePermissions(client: AgorClient | null) {
   const [pendingRequest, setPendingRequest] = useState<PermissionRequest | null>(null);
 
-  // Queue of pending requests (handle multiple sessions)
-  const [requestQueue, setRequestQueue] = useState<PermissionRequest[]>([]);
-
-  // User preferences (auto-allow lists)
-  const [autoAllowList, setAutoAllowList] = useState<Set<string>>(new Set());
-
-  // Listen for permission:request WebSocket events
   useEffect(() => {
     if (!client) return;
 
     const handleRequest = (request: PermissionRequest) => {
-      // Check auto-allow list first
-      if (autoAllowList.has(request.toolName)) {
-        sendDecision(request.requestId, true, false, 'once');
-        return;
-      }
-
-      // Add to queue
-      setRequestQueue(prev => [...prev, request]);
+      setPendingRequest(request);
     };
 
-    client.on('permission:request', handleRequest);
-    return () => client.off('permission:request', handleRequest);
-  }, [client, autoAllowList]);
+    client.service('sessions').on('permission:request', handleRequest);
+    return () => client.service('sessions').off('permission:request', handleRequest);
+  }, [client]);
 
-  // Send decision to backend
   const sendDecision = async (
-    requestId: string,
     allow: boolean,
     remember: boolean,
-    scope: 'once' | 'session' | 'global',
-    reason?: string
+    scope: 'once' | 'session' | 'project'
   ) => {
-    await client.service(`sessions/${request.sessionId}/permission-decision`).create({
-      requestId,
+    if (!pendingRequest) return;
+
+    await client.service('sessions').permissionDecision(pendingRequest.sessionId, {
+      requestId: pendingRequest.requestId,
       allow,
       remember,
       scope,
-      reason,
     });
 
-    // Update auto-allow list if remembering
-    if (remember && allow) {
-      if (scope === 'global') {
-        setAutoAllowList(prev => new Set([...prev, request.toolName]));
-      }
-      // TODO: Store per-session rules
-    }
-
-    // Remove from queue
-    setRequestQueue(prev => prev.filter(r => r.requestId !== requestId));
+    setPendingRequest(null);
   };
 
-  return { pendingRequest, requestQueue, sendDecision };
+  return { pendingRequest, sendDecision };
 }
 ```
 
-#### 6. Integrate with SessionDrawer
+#### 6. Integrate with App.tsx
 
-**File:** `apps/agor-ui/src/components/SessionDrawer/SessionDrawer.tsx`
+**File:** `apps/agor-ui/src/App.tsx`
 
-**Changes:**
+```typescript
+export function App() {
+  const client = useAgorClient();
+  const { pendingRequest, sendDecision } = usePermissions(client);
 
-- Add `usePermissions()` hook
-- Show `PermissionModal` when `pendingRequest` exists
-- Display "⚠️ Waiting for permission..." indicator in conversation view
-- Auto-scroll to show blocked tool use with pending state
+  return (
+    <>
+      {/* Existing UI */}
+      <SessionCanvas />
 
-### Phase 3: Permission Configuration
+      {/* Permission modal (global, not per-session) */}
+      {pendingRequest && (
+        <PermissionModal
+          request={pendingRequest}
+          onDecide={sendDecision}
+        />
+      )}
+    </>
+  );
+}
+```
 
-#### 7. Add Permission Settings UI (Future)
+### Phase 4: Optional Enhancements
 
-**Location:** Settings Modal > Permissions Tab
+#### Tool Status in Conversation View
 
-**Features:**
+Show permission state visually in the message stream:
 
-- **Global Allow List:** Table of tools that never require approval
-- **Global Deny List:** Tools that are always blocked
-- **Per-Session Overrides:** View and edit session-specific rules
-- **Permission Mode Toggle:** Normal / Auto-Accept (with warning)
-- **Reset Rules:** Clear all permission preferences
+- **⏸️ Awaiting Permission** (yellow badge) - Tool blocked, waiting for user
+- **✓ Allowed** (green badge, auto-hide after 2s) - Permission granted
+- **✗ Blocked** (red badge) - Permission denied + reason tooltip
+- **⚡ Executing...** (blue badge) - Tool running
+- **Completed** - Normal tool result display
 
-**Storage:**
+#### Permission Settings Panel
 
-- Global rules → `~/.agor/config.json` (`permissions` section)
-- Session rules → Session metadata in database
+Add settings UI for managing permissions:
 
-### Phase 4: Enhanced UX
+- View/edit project-level allow/deny lists (reads `.claude/settings.json`)
+- View/edit session-level allow/deny lists (database)
+- Permission mode toggle (normal / auto-accept)
+- Reset session permissions button
 
-#### 8. Tool Preview in Conversation
+#### Permission History (Future)
 
-**File:** `apps/agor-ui/src/components/ToolUseRenderer/ToolUseRenderer.tsx`
+Optional audit trail:
 
-**States:**
+```typescript
+// New table: permission_history
+{
+  permission_id: UUID,
+  session_id: SessionID,
+  tool_name: string,
+  tool_input: Record<string, unknown>,
+  decision: 'allow' | 'deny',
+  scope: 'once' | 'session' | 'project',
+  timestamp: string
+}
+```
 
-- **Pending Approval:** Badge "⏸️ Awaiting Permission" (yellow)
-- **Approved:** Badge "✓ Allowed" (green, auto-hide after 2s)
-- **Denied:** Badge "✗ Blocked" (red) + denial reason tooltip
-- **Running:** Badge "⚡ Executing..." (blue)
-- **Completed:** Normal tool result display
+Display in SessionDrawer sidebar tab with "Undo" functionality.
 
-#### 9. Permission History
+## Key Architectural Benefits
 
-**Future Enhancement:**
+✅ **Piggybacks on SDK** - Uses built-in permission system via `settingSources`
+✅ **Async-safe** - PreToolUse hook pauses execution until user decides
+✅ **No "permission denied" messages** - Hook intercepts BEFORE Claude tries the tool
+✅ **Multi-scope** - Session-level (DB) + Project-level (`.claude/settings.json`)
+✅ **Real-time UI** - WebSocket event → Modal → Decision → Query continues
+✅ **Standard format** - Reuses Claude Code's `settings.json` schema
 
-- Store all permission decisions in database
-- Add `permission_history` table:
-  ```typescript
-  {
-    permission_id: UUID,
-    session_id: SessionID,
-    tool_name: string,
-    tool_input: Record<string, unknown>,
-    decision: 'allow' | 'deny',
-    reason?: string,
-    scope: 'once' | 'session' | 'global',
-    timestamp: string,
+## Security Best Practices
+
+### Suggested Default Permissions
+
+**Auto-allow (low-risk, read-only):**
+
+```json
+{
+  "permissions": {
+    "allow": {
+      "tools": ["Read", "Glob", "Grep"],
+      "bash_commands": ["ls", "pwd", "git status", "git log", "git diff"]
+    }
   }
-  ```
-- Display in SessionDrawer sidebar tab
-- Allow "Undo" for auto-allow rules
+}
+```
 
-## Benefits
+**Always ask (high-risk):**
 
-✅ **Recreates Claude Code CLI Experience** - Uses same PreToolUse hook mechanism
-✅ **Better Control** - Visual approval with full context
-✅ **Safety** - Prevents dangerous operations (bash, file writes, network)
-✅ **Flexibility** - Per-session, per-tool, or global rules
-✅ **Real-time** - WebSocket-based, instant UI updates
-✅ **Multi-session Support** - Handle multiple sessions requesting permissions simultaneously
-✅ **User-Friendly** - Clear UI with formatted tool inputs, not just JSON
-✅ **Auditable** - Complete permission history for compliance/debugging
+- `Bash` (arbitrary commands)
+- `Write` / `Edit` (file modifications)
+- `WebFetch` (network access)
+- `git push` / `git commit` (version control)
 
-## Security Considerations
+### Dangerous Operation Handling
 
-### High-Risk Tools
+For especially risky operations, the UI can parse tool input and show warnings:
 
-Tools that should default to requiring approval:
+- `rm -rf` → Red warning banner: "⚠️ This will permanently delete files"
+- `git push --force` → "⚠️ This will overwrite remote history"
+- `curl | bash` → "⚠️ Executing remote code is dangerous"
 
-- **Bash** - Arbitrary command execution
-- **Write** - File system modifications
-- **Edit** - Code changes
-- **WebFetch** - Network requests (potential data exfiltration)
-- **Git** - Version control operations (especially push/commit)
+## Implementation Timeline
 
-### Low-Risk Tools
+**Phase 1 (5 minutes):** Add `'user'` to `settingSources` - Done!
+**Phase 2 (1-2 days):** PreToolUse hook + PermissionService + UI modal
+**Phase 3 (1 day):** Session/project scope persistence
+**Phase 4 (optional):** Settings panel, permission history, tool status badges
 
-Tools that could be auto-allowed by default:
+## Database Changes Needed
 
-- **Read** - File reading (read-only)
-- **Glob** - File pattern matching (read-only)
-- **Grep** - Content search (read-only)
+**None for Phase 1!**
 
-### Dangerous Operations
+**For Phase 2 (session-level overrides):**
 
-Special handling for:
+The `sessions` table already has a `data` JSON column. No migration needed:
 
-- **`rm -rf`** - Always require confirmation with warning
-- **`git push`** - Show diff and require explicit approval
-- **Network writes** - Show destination URL
-- **`sudo` commands** - Show clear warning about elevated privileges
+```typescript
+Session {
+  data: {
+    permission_config?: {
+      allowedTools?: string[];   // Session-specific allowlist
+      deniedTools?: string[];    // Session-specific denylist
+    }
+  }
+}
+```
 
-## Technical Implementation Notes
-
-### WebSocket Event Flow
-
-1. **Agent attempts tool use** → SDK calls `PreToolUse` hook
-2. **Hook emits WebSocket event** → `permission:request` sent to UI
-3. **UI shows modal** → User makes decision
-4. **UI sends decision** → `POST /sessions/:id/permission-decision`
-5. **Hook resolves promise** → Returns `allow`/`deny` to SDK
-6. **SDK continues/blocks** → Based on decision
-
-### Timeout Handling
-
-- Default timeout: 60 seconds
-- If timeout expires → Deny by default (fail-safe)
-- Use `AbortSignal` to cancel pending requests if session closes
-
-### Race Conditions
-
-- Use request ID to track specific requests
-- Queue multiple requests if they arrive simultaneously
-- Show count indicator: "3 pending permissions"
-
-### Performance
-
-- In-memory map for pending requests (no database overhead)
-- WebSocket events for instant updates (no polling)
-- Automatic cleanup of resolved requests
-
-## Future Enhancements
-
-### Smart Defaults
-
-- Learn from user decisions (ML-based recommendations)
-- Suggest auto-allow for frequently approved tools
-- Warn about unusual tool patterns
-
-### Team Policies
-
-- Company-wide permission rules (V2 - Cloud)
-- Enforce deny lists across organization
-- Audit trail for compliance
-
-### Context-Aware Permissions
-
-- Different rules for different repos
-- Branch-specific permissions (allow write on feature/, deny on main/)
-- Time-based rules (restrict after-hours operations)
+Just update the TypeScript type in `packages/core/src/types/session.ts`.
 
 ## References
 
-- [Claude Agent SDK TypeScript Reference](https://docs.claude.com/en/api/agent-sdk/typescript)
-- [Claude Code Permissions Guide](https://docs.claude.com/en/docs/claude-code/security)
-- [Building Agents with Claude SDK](https://www.anthropic.com/engineering/building-agents-with-the-claude-agent-sdk)
+- [Claude Agent SDK Permissions](https://docs.claude.com/en/api/agent-sdk/permissions)
+- [Claude Code Security](https://docs.claude.com/en/docs/claude-code/security)
+- [Settings JSON Schema](https://json.schemastore.org/claude-code-settings.json)
 
 ---
 
-**Status:** Exploration
-**Next Steps:** Add to PROJECT.md roadmap after fork/spawn implementation
-**Dependencies:** Current live execution via Agent SDK (already implemented)
+**Status:** Research Complete, Ready to Implement
+**Next Steps:** Phase 1 (5 min) → Test with real session → Phase 2 when needed
+**Dependencies:** ✅ ClaudePromptService already exists

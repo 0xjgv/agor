@@ -57,6 +57,12 @@ interface SessionDrawerProps {
   onSendPrompt?: (prompt: string) => void;
   onFork?: (prompt: string) => void;
   onSubtask?: (prompt: string) => void;
+  onPermissionDecision?: (
+    sessionId: string,
+    requestId: string,
+    taskId: string,
+    allow: boolean
+  ) => void;
   onOpenSettings?: (sessionId: string) => void;
 }
 
@@ -72,6 +78,7 @@ const SessionDrawer = ({
   onSendPrompt,
   onFork,
   onSubtask,
+  onPermissionDecision,
   onOpenSettings,
 }: SessionDrawerProps) => {
   const { token } = theme.useToken();
@@ -265,6 +272,7 @@ const SessionDrawer = ({
           users={users}
           currentUserId={currentUserId}
           onScrollRef={setScrollToBottom}
+          onPermissionDecision={onPermissionDecision}
         />
       </div>
 
