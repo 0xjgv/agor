@@ -2,7 +2,7 @@
 
 # Agor
 
-> **The orchestration layer for AI-assisted development**
+> **Next-gen agent orchestration — Multi-agent · Multiplayer · Real-time**
 
 **Status:** Phase 2 Complete - Multi-User Foundation
 
@@ -12,9 +12,9 @@
 
 ## What is Agor?
 
-**Agor is an agent orchestrator** - the platform layer that sits above all agentic coding tools, providing one UI to manage all agents.
+**The control tower for AI-assisted development.** Manage unlimited agents (Claude Code, Cursor, Codex, Gemini) under one pane of glass—alone or with your team.
 
-Instead of competing with agentic coding tools (Claude Code, Cursor, Codex, Gemini), Agor provides the coordination and visibility layer above them all.
+Organize sessions on visual boards. Coordinate parallel workflows. Orchestrate complex tasks across multiple agents in real-time. Instead of juggling isolated chat windows, command your entire fleet of AI coding tools from a single tactical interface.
 
 ### The Core Insight
 

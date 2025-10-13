@@ -61,16 +61,20 @@ export function useStreamingMessages(
   );
 
   useEffect(() => {
-    if (!client) return;
+    if (!client) {
+      return;
+    }
 
     const messagesService = client.service('messages');
 
     // Handler for streaming:start
     const handleStreamingStart = (data: StreamingStartEvent) => {
       // Only track messages for this session (if sessionId provided)
-      if (sessionId && data.session_id !== sessionId) return;
+      if (sessionId && data.session_id !== sessionId) {
+        return;
+      }
 
-      console.log(`📡 [UI] Streaming start: ${data.message_id}`);
+      console.debug(`📡 Streaming start: ${data.message_id.substring(0, 8)}`);
 
       setStreamingMessages(prev => {
         const newMap = new Map(prev);
@@ -90,12 +94,13 @@ export function useStreamingMessages(
     // Handler for streaming:chunk
     const handleStreamingChunk = (data: StreamingChunkEvent) => {
       // Only track messages for this session (if sessionId provided)
-      if (sessionId && data.session_id !== sessionId) return;
+      if (sessionId && data.session_id !== sessionId) {
+        return;
+      }
 
       setStreamingMessages(prev => {
         const message = prev.get(data.message_id);
         if (!message) {
-          console.warn(`⚠️  Received chunk for unknown message: ${data.message_id}`);
           return prev;
         }
 
@@ -111,9 +116,11 @@ export function useStreamingMessages(
     // Handler for streaming:end
     const handleStreamingEnd = (data: StreamingEndEvent) => {
       // Only track messages for this session (if sessionId provided)
-      if (sessionId && data.session_id !== sessionId) return;
+      if (sessionId && data.session_id !== sessionId) {
+        return;
+      }
 
-      console.log(`📡 [UI] Streaming end: ${data.message_id}`);
+      console.debug(`📡 Streaming end: ${data.message_id.substring(0, 8)}`);
 
       // Remove from streaming buffer (full message now in DB)
       setStreamingMessages(prev => {
@@ -126,14 +133,16 @@ export function useStreamingMessages(
     // Handler for streaming:error
     const handleStreamingError = (data: StreamingErrorEvent) => {
       // Only track messages for this session (if sessionId provided)
-      if (sessionId && data.session_id !== sessionId) return;
-
-      console.error(`📡 [UI] Streaming error: ${data.message_id}`, data.error);
+      if (sessionId && data.session_id !== sessionId) {
+        return;
+      }
 
       // Mark as error but keep content
       setStreamingMessages(prev => {
         const message = prev.get(data.message_id);
-        if (!message) return prev;
+        if (!message) {
+          return prev;
+        }
 
         const newMap = new Map(prev);
         newMap.set(data.message_id, {

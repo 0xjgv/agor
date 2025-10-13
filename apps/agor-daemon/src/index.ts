@@ -113,7 +113,12 @@ async function main() {
   app.use('/sessions', createSessionsService(db));
   app.use('/tasks', createTasksService(db));
   const messagesService = createMessagesService(db);
-  app.use('/messages', messagesService);
+
+  // Register messages service with custom streaming events
+  app.use('/messages', messagesService, {
+    events: ['streaming:start', 'streaming:chunk', 'streaming:end', 'streaming:error'],
+  });
+
   app.use('/boards', createBoardsService(db));
   app.use('/repos', createReposService(db));
   app.use('/mcp-servers', createMCPServersService(db));
@@ -455,6 +460,10 @@ async function main() {
       data: { prompt: string; permissionMode?: PermissionMode; stream?: boolean },
       params: RouteParams
     ) {
+      console.debug(
+        `📨 [${new Date().toISOString()}] Prompt request for session ${params.route?.id?.substring(0, 8)}`
+      );
+
       const id = params.route?.id;
       if (!id) throw new Error('Session ID required');
       if (!data.prompt) throw new Error('Prompt required');
@@ -491,16 +500,18 @@ async function main() {
       });
 
       // Create streaming callbacks for real-time UI updates
+      // Custom events are registered via app.use('/messages', service, { events: [...] })
       const streamingCallbacks: import('@agor/core/tools').StreamingCallbacks = {
         onStreamStart: (messageId, metadata) => {
-          console.log(`📡 [Streaming] Start: message ${messageId}`);
+          console.debug(
+            `📡 [${new Date().toISOString()}] Streaming start: ${messageId.substring(0, 8)}`
+          );
           app.service('messages').emit('streaming:start', {
             message_id: messageId,
             ...metadata,
           });
         },
         onStreamChunk: (messageId, chunk) => {
-          // console.log(`📡 [Streaming] Chunk: ${chunk.substring(0, 20)}...`);
           app.service('messages').emit('streaming:chunk', {
             message_id: messageId,
             session_id: id,
@@ -508,14 +519,16 @@ async function main() {
           });
         },
         onStreamEnd: messageId => {
-          console.log(`📡 [Streaming] End: message ${messageId}`);
+          console.debug(
+            `📡 [${new Date().toISOString()}] Streaming end: ${messageId.substring(0, 8)}`
+          );
           app.service('messages').emit('streaming:end', {
             message_id: messageId,
             session_id: id,
           });
         },
         onStreamError: (messageId, error) => {
-          console.error(`📡 [Streaming] Error: message ${messageId}`, error);
+          console.error(`❌ Streaming error for message ${messageId.substring(0, 8)}:`, error);
           app.service('messages').emit('streaming:error', {
             message_id: messageId,
             session_id: id,

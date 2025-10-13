@@ -185,12 +185,17 @@ export class ClaudeTool implements ITool {
     let capturedAgentSessionId: string | undefined;
 
     // Iterate through assistant messages from Agent SDK
+    const streamStartTime = Date.now();
+
     for await (const assistantMsg of this.promptService.promptSessionStreaming(
       sessionId,
       prompt,
       taskId,
       permissionMode
     )) {
+      const messageReceivedTime = Date.now();
+      console.debug(`⏱️ [SDK] TTFB: ${messageReceivedTime - streamStartTime}ms`);
+
       // Capture Agent SDK session_id from first message
       if (!capturedAgentSessionId && assistantMsg.agentSessionId) {
         capturedAgentSessionId = assistantMsg.agentSessionId;
@@ -222,10 +227,9 @@ export class ClaudeTool implements ITool {
           timestamp: new Date().toISOString(),
         });
 
-        console.log(`📡 Streaming message ${assistantMessageId} in chunks...`);
-
         // Chunk text into 5-10 word segments at sentence boundaries
         const chunks = this.chunkTextForStreaming(fullTextContent);
+        console.debug(`⏱️ [Streaming] ${chunks.length} chunks, ${fullTextContent.length} chars`);
 
         // Emit chunks with small delays to simulate streaming
         for (let i = 0; i < chunks.length; i++) {
@@ -238,8 +242,9 @@ export class ClaudeTool implements ITool {
         }
 
         // Emit streaming:end
+        const streamEndTime = Date.now();
         streamingCallbacks.onStreamEnd(assistantMessageId);
-        console.log(`✅ Streaming complete for message ${assistantMessageId}`);
+        console.debug(`⏱️ [Streaming] Complete in ${streamEndTime - streamStartTime}ms total`);
       }
 
       // Generate content preview from text blocks
