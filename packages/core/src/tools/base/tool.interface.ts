@@ -19,6 +19,7 @@ import type {
   SessionData,
   SessionHandle,
   SessionMetadata,
+  StreamingCallbacks,
   TaskResult,
   ToolCapabilities,
   ToolType,
@@ -83,11 +84,34 @@ export interface ITool {
   /**
    * Execute task (send prompt) in existing session
    *
+   * CONTRACT:
+   * - MANDATORY: Must call messagesService.create() with complete message when done
+   * - MANDATORY: Complete message automatically broadcasts via FeathersJS
+   * - OPTIONAL: If supportsStreaming=true, may call streamingCallbacks during execution
+   *
+   * STREAMING:
+   * - If streamingCallbacks provided AND supportsStreaming=true:
+   *   - Call onStreamStart() before generating
+   *   - Call onStreamChunk() for each 3-10 word chunk
+   *   - Call onStreamEnd() after generating
+   *   - Then create complete message in DB
+   * - If streamingCallbacks not provided OR supportsStreaming=false:
+   *   - Execute synchronously
+   *   - Create complete message in DB
+   *   - User sees loading spinner, then full message
+   *
    * @param sessionId - Session identifier
    * @param prompt - User prompt
-   * @returns Task result (may stream internally)
+   * @param taskId - Task identifier (for linking messages)
+   * @param streamingCallbacks - Optional callbacks for real-time streaming (ignored if !supportsStreaming)
+   * @returns Task result with message IDs
    */
-  executeTask?(sessionId: string, prompt: string): Promise<TaskResult>;
+  executeTask?(
+    sessionId: string,
+    prompt: string,
+    taskId?: string,
+    streamingCallbacks?: StreamingCallbacks
+  ): Promise<TaskResult>;
 
   // ============================================================
   // Session Operations (if supported)

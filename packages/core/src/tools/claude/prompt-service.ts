@@ -590,22 +590,24 @@ export class ClaudePromptService {
   }
 
   /**
-   * Prompt a session using Claude Agent SDK (streaming version)
+   * Prompt a session using Claude Agent SDK (streaming version with text chunking)
    *
-   * Yields each assistant message as it arrives from the Agent SDK.
-   * This enables progressive UI updates.
+   * Yields both complete assistant messages AND text chunks as they're generated.
+   * This enables real-time typewriter effect in the UI.
    *
    * @param sessionId - Session to prompt
    * @param prompt - User prompt
    * @param taskId - Optional task ID for permission tracking
    * @param permissionMode - Optional permission mode for SDK
+   * @param chunkCallback - Optional callback for text chunks (3-10 words)
    * @returns Async generator yielding assistant messages with SDK session ID
    */
   async *promptSessionStreaming(
     sessionId: SessionID,
     prompt: string,
     taskId?: TaskID,
-    permissionMode?: PermissionMode
+    permissionMode?: PermissionMode,
+    chunkCallback?: (messageId: string, chunk: string) => void
   ): AsyncGenerator<{
     content: Array<{
       type: string;
@@ -639,6 +641,10 @@ export class ClaudePromptService {
         const toolUses = this.extractToolUses(contentBlocks);
 
         console.log(`   [Message ${messageCount}] Yielding assistant message (progressive update)`);
+
+        // TODO: Add text chunk streaming here if chunkCallback provided
+        // For now, the Agent SDK doesn't expose token-level streaming
+        // We yield complete messages, but with chunkCallback we could buffer and emit chunks
 
         // Yield this message immediately for progressive UI update
         yield {

@@ -16,7 +16,7 @@ import type { AgorClient } from '@agor/core/api';
 import type { SessionID, User } from '@agor/core/types';
 import { Alert, Empty, Spin } from 'antd';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useMessages, useTasks } from '../../hooks';
+import { useMessages, useStreamingMessages, useTasks } from '../../hooks';
 import { TaskBlock } from '../TaskBlock';
 
 export interface ConversationViewProps {
@@ -89,8 +89,21 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   } = useMessages(client, sessionId);
   const { tasks, loading: tasksLoading, error: tasksError } = useTasks(client, sessionId);
 
+  // Track real-time streaming messages
+  const streamingMessages = useStreamingMessages(client, sessionId || undefined);
+
   const loading = messagesLoading || tasksLoading;
   const error = messagesError || tasksError;
+
+  // Merge streaming messages with DB messages
+  const allMessages = useMemo(() => {
+    // Convert streaming messages map to array and merge with DB messages
+    const streamingArray = Array.from(streamingMessages.values());
+    return [...messages, ...streamingArray].sort((a, b) => {
+      // Sort by timestamp (streaming messages have timestamps too)
+      return a.timestamp.localeCompare(b.timestamp);
+    });
+  }, [messages, streamingMessages]);
 
   // Group messages by task
   const taskWithMessages = useMemo(() => {
@@ -98,15 +111,15 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
 
     return tasks.map(task => ({
       task,
-      messages: messages.filter(msg => msg.task_id === task.task_id),
+      messages: allMessages.filter(msg => msg.task_id === task.task_id),
     }));
-  }, [tasks, messages]);
+  }, [tasks, allMessages]);
 
-  // Auto-scroll to bottom when new messages arrive
-  // biome-ignore lint/correctness/useExhaustiveDependencies: We want to scroll on messages change
+  // Auto-scroll to bottom when new messages arrive (including streaming)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: We want to scroll on messages/streaming change
   useEffect(() => {
     scrollToBottom();
-  }, [messages, tasks]);
+  }, [allMessages, tasks]);
 
   if (error) {
     return (

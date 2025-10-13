@@ -5,4 +5,5 @@ export * from './useAuthConfig';
 export * from './useBoardActions';
 export * from './useMessages';
 export * from './useSessionActions';
+export * from './useStreamingMessages';
 export * from './useTasks';

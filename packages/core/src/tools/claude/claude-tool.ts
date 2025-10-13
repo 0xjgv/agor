@@ -88,7 +88,7 @@ export class ClaudeTool implements ITool {
       supportsSessionFork: false,
       supportsChildSpawn: false,
       supportsGitState: true, // Transcripts contain git state
-      supportsStreaming: false, // Returns complete messages
+      supportsStreaming: true, // ✅ Streaming via callbacks during message generation
     };
   }
 
@@ -133,7 +133,183 @@ export class ClaudeTool implements ITool {
   }
 
   /**
-   * Execute a prompt against a session
+   * Execute a prompt against a session WITH real-time streaming
+   *
+   * Creates user message, streams response chunks from Claude, then creates complete assistant messages.
+   * Calls streamingCallbacks during message generation for real-time UI updates.
+   * Agent SDK may return multiple assistant messages (e.g., tool invocation, then response).
+   *
+   * @param sessionId - Session to execute prompt in
+   * @param prompt - User prompt text
+   * @param taskId - Optional task ID for linking messages
+   * @param permissionMode - Optional permission mode for SDK
+   * @param streamingCallbacks - Optional callbacks for real-time streaming (enables typewriter effect)
+   * @returns User message ID and array of assistant message IDs
+   */
+  async executePromptWithStreaming(
+    sessionId: SessionID,
+    prompt: string,
+    taskId?: TaskID,
+    permissionMode?: PermissionMode,
+    streamingCallbacks?: import('../base').StreamingCallbacks
+  ): Promise<{ userMessageId: MessageID; assistantMessageIds: MessageID[] }> {
+    if (!this.promptService || !this.messagesRepo) {
+      throw new Error('ClaudeTool not initialized with repositories for live execution');
+    }
+
+    if (!this.messagesService) {
+      throw new Error('ClaudeTool not initialized with messagesService for live execution');
+    }
+
+    // Get next message index
+    const existingMessages = await this.messagesRepo.findBySessionId(sessionId);
+    let nextIndex = existingMessages.length;
+
+    // Create user message immediately via FeathersJS service (emits WebSocket event)
+    const userMessage: Message = {
+      message_id: generateId() as MessageID,
+      session_id: sessionId,
+      type: 'user',
+      role: 'user',
+      index: nextIndex++,
+      timestamp: new Date().toISOString(),
+      content_preview: prompt.substring(0, 200),
+      content: prompt,
+      task_id: taskId,
+    };
+
+    await this.messagesService.create(userMessage);
+
+    // Execute prompt via Agent SDK with streaming
+    const assistantMessageIds: MessageID[] = [];
+    let capturedAgentSessionId: string | undefined;
+
+    // Iterate through assistant messages from Agent SDK
+    for await (const assistantMsg of this.promptService.promptSessionStreaming(
+      sessionId,
+      prompt,
+      taskId,
+      permissionMode
+    )) {
+      // Capture Agent SDK session_id from first message
+      if (!capturedAgentSessionId && assistantMsg.agentSessionId) {
+        capturedAgentSessionId = assistantMsg.agentSessionId;
+        console.log(
+          `🔑 Captured Agent SDK session_id for Agor session ${sessionId}: ${capturedAgentSessionId}`
+        );
+
+        // Store it in the session for future prompts
+        if (this.sessionsRepo) {
+          await this.sessionsRepo.update(sessionId, { agent_session_id: capturedAgentSessionId });
+          console.log(`💾 Stored Agent SDK session_id in Agor session`);
+        }
+      }
+
+      // Generate message ID for this assistant message
+      const assistantMessageId = generateId() as MessageID;
+
+      // Extract text content for streaming
+      const textBlocks = assistantMsg.content.filter(b => b.type === 'text').map(b => b.text || '');
+      const fullTextContent = textBlocks.join('');
+
+      // If streaming callbacks provided, emit chunks
+      if (streamingCallbacks && fullTextContent) {
+        // Emit streaming:start
+        streamingCallbacks.onStreamStart(assistantMessageId, {
+          session_id: sessionId,
+          task_id: taskId,
+          role: 'assistant',
+          timestamp: new Date().toISOString(),
+        });
+
+        console.log(`📡 Streaming message ${assistantMessageId} in chunks...`);
+
+        // Chunk text into 5-10 word segments at sentence boundaries
+        const chunks = this.chunkTextForStreaming(fullTextContent);
+
+        // Emit chunks with small delays to simulate streaming
+        for (let i = 0; i < chunks.length; i++) {
+          streamingCallbacks.onStreamChunk(assistantMessageId, chunks[i]);
+
+          // Add 50ms delay between chunks for typewriter effect (skip delay on last chunk)
+          if (i < chunks.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+          }
+        }
+
+        // Emit streaming:end
+        streamingCallbacks.onStreamEnd(assistantMessageId);
+        console.log(`✅ Streaming complete for message ${assistantMessageId}`);
+      }
+
+      // Generate content preview from text blocks
+      const contentPreview = fullTextContent.substring(0, 200);
+
+      // Create complete message in DB (triggers WebSocket broadcast)
+      const message: Message = {
+        message_id: assistantMessageId,
+        session_id: sessionId,
+        type: 'assistant',
+        role: 'assistant',
+        index: nextIndex++,
+        timestamp: new Date().toISOString(),
+        content_preview: contentPreview,
+        content: assistantMsg.content as Message['content'],
+        tool_uses: assistantMsg.toolUses,
+        task_id: taskId,
+        metadata: {
+          model: 'claude-sonnet-4-5-20250929',
+          tokens: {
+            input: 0, // TODO: Extract from SDK
+            output: 0,
+          },
+        },
+      };
+
+      await this.messagesService.create(message);
+      assistantMessageIds.push(message.message_id);
+    }
+
+    return {
+      userMessageId: userMessage.message_id,
+      assistantMessageIds,
+    };
+  }
+
+  /**
+   * Chunk text into 5-10 word segments for streaming
+   * Flushes at sentence boundaries (., !, ?, \n\n) or word count threshold
+   * @private
+   */
+  private chunkTextForStreaming(text: string): string[] {
+    const chunks: string[] = [];
+    let buffer = '';
+    const words = text.split(/(\s+)/); // Keep whitespace
+
+    for (const word of words) {
+      buffer += word;
+
+      // Count non-whitespace words in buffer
+      const wordCount = buffer.split(/\s+/).filter(w => w.length > 0).length;
+
+      // Flush if we hit a sentence boundary (with 3+ words) or 10 words
+      const hasSentenceBoundary = /[.!?\n\n]\s*$/.test(buffer.trimEnd());
+      if ((hasSentenceBoundary && wordCount >= 3) || wordCount >= 10) {
+        chunks.push(buffer);
+        buffer = '';
+      }
+    }
+
+    // Flush remaining
+    if (buffer.trim()) {
+      chunks.push(buffer);
+    }
+
+    return chunks;
+  }
+
+  /**
+   * Execute a prompt against a session (non-streaming version)
    *
    * Creates user message, streams response from Claude, creates assistant messages.
    * Agent SDK may return multiple assistant messages (e.g., tool invocation, then response).

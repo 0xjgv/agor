@@ -451,7 +451,10 @@ async function main() {
   } as any);
 
   app.use('/sessions/:id/prompt', {
-    async create(data: { prompt: string; permissionMode?: PermissionMode }, params: RouteParams) {
+    async create(
+      data: { prompt: string; permissionMode?: PermissionMode; stream?: boolean },
+      params: RouteParams
+    ) {
       const id = params.route?.id;
       if (!id) throw new Error('Session ID required');
       if (!data.prompt) throw new Error('Prompt required');
@@ -487,12 +490,61 @@ async function main() {
         tasks: [...session.tasks, task.task_id],
       });
 
+      // Create streaming callbacks for real-time UI updates
+      const streamingCallbacks: import('@agor/core/tools').StreamingCallbacks = {
+        onStreamStart: (messageId, metadata) => {
+          console.log(`📡 [Streaming] Start: message ${messageId}`);
+          app.service('messages').emit('streaming:start', {
+            message_id: messageId,
+            ...metadata,
+          });
+        },
+        onStreamChunk: (messageId, chunk) => {
+          // console.log(`📡 [Streaming] Chunk: ${chunk.substring(0, 20)}...`);
+          app.service('messages').emit('streaming:chunk', {
+            message_id: messageId,
+            session_id: id,
+            chunk,
+          });
+        },
+        onStreamEnd: messageId => {
+          console.log(`📡 [Streaming] End: message ${messageId}`);
+          app.service('messages').emit('streaming:end', {
+            message_id: messageId,
+            session_id: id,
+          });
+        },
+        onStreamError: (messageId, error) => {
+          console.error(`📡 [Streaming] Error: message ${messageId}`, error);
+          app.service('messages').emit('streaming:error', {
+            message_id: messageId,
+            session_id: id,
+            error: error.message,
+          });
+        },
+      };
+
       // PHASE 2: Execute prompt in background (COMPLETELY DETACHED from HTTP request context)
       // Use setImmediate to break out of FeathersJS request scope
       // This ensures WebSocket events flush immediately, not batched with request
+      const useStreaming = data.stream !== false; // Default to true
       setImmediate(() => {
-        claudeTool
-          .executePrompt(id as SessionID, data.prompt, task.task_id, data.permissionMode)
+        const executeMethod = useStreaming
+          ? claudeTool.executePromptWithStreaming(
+              id as SessionID,
+              data.prompt,
+              task.task_id,
+              data.permissionMode,
+              streamingCallbacks
+            )
+          : claudeTool.executePrompt(
+              id as SessionID,
+              data.prompt,
+              task.task_id,
+              data.permissionMode
+            );
+
+        executeMethod
           .then(async result => {
             try {
               // PHASE 3: Mark task as completed and update message count
@@ -561,6 +613,7 @@ async function main() {
         success: true,
         taskId: task.task_id,
         status: 'running',
+        streaming: useStreaming, // Inform client whether streaming is enabled
       };
     },
   });

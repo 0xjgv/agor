@@ -41,14 +41,46 @@ See [context/explorations/social-features.md](context/explorations/social-featur
   - Different edge styles (solid spawn, dashed fork)
   - Click edge to see fork/spawn context
 
-### Future (Phase 4+)
+### Phase 4: Distribution & Packaging (Q2-Q4 2025)
+
+**Goal:** Make Agor easy to install and use for non-developers.
+
+See [context/explorations/single-package.md](context/explorations/single-package.md) for complete distribution strategy.
+
+**Phase 4a: Quick npm Release (Q2 2025) - 1-2 weeks**
+
+- [ ] Publish `@agor/core` to npm
+- [ ] Publish `@agor/daemon` to npm
+- [ ] Publish `@agor/cli` to npm
+- [ ] Update README with npm install instructions
+- [ ] Document daemon setup separately
+
+**Phase 4b: Bundled Experience (Q3 2025) - 2-4 weeks**
+
+- [ ] Bundle daemon into CLI package
+- [ ] Implement auto-start daemon on CLI commands
+- [ ] Add `agor daemon` lifecycle commands (start/stop/status/logs)
+- [ ] Publish `agor` meta-package
+- [ ] Update README with simplified instructions
+
+**Phase 4c: Desktop Application (Q4 2025) - 6-8 weeks**
+
+- [ ] Choose framework: Tauri (recommended) or Electron
+- [ ] Embed daemon as Tauri sidecar
+- [ ] Build native installers (macOS .dmg, Windows .exe, Linux .deb)
+- [ ] Add system tray integration
+- [ ] Publish to Homebrew, winget, apt repositories
+- [ ] Implement native auto-update mechanism
+
+---
+
+### Future (Phase 5+)
 
 See [context/explorations/](context/explorations/) for detailed designs:
 
 - **OAuth & organizations** ([multiplayer-auth.md](context/explorations/multiplayer-auth.md)) - GitHub/Google login, team workspaces, RBAC
-- **Desktop app** - Electron/Tauri packaging with bundled daemon
 - **Multi-agent support** ([agent-interface.md](context/concepts/agent-integration.md)) - Cursor, Codex, Gemini
-- **Cloud deployment** - PostgreSQL migration, Turso/Supabase
+- **Cloud deployment** - PostgreSQL migration, Turso/Supabase, hosted version
 
 # Critical path
 

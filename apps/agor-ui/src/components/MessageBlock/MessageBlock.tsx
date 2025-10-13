@@ -39,7 +39,7 @@ interface TextBlock {
 type ContentBlock = TextBlock | ToolUseBlock | ToolResultBlock;
 
 interface MessageBlockProps {
-  message: Message;
+  message: Message | (Message & { isStreaming?: boolean });
   users?: User[];
   currentUserId?: string;
 }
@@ -51,6 +51,8 @@ export const MessageBlock: React.FC<MessageBlockProps> = ({
 }) => {
   const { token } = theme.useToken();
   const isUser = message.role === 'user';
+  // Check if message is currently streaming
+  const isStreaming = 'isStreaming' in message && message.isStreaming === true;
 
   // Get current user's emoji
   const currentUser = users.find(u => u.user_id === currentUserId);
@@ -154,7 +156,20 @@ export const MessageBlock: React.FC<MessageBlockProps> = ({
                 {isUser ? (
                   textBeforeTools.filter(t => t.trim()).join('\n\n')
                 ) : (
-                  <MarkdownRenderer content={textBeforeTools} inline />
+                  <>
+                    <MarkdownRenderer content={textBeforeTools} inline />
+                    {isStreaming && (
+                      <span
+                        style={{
+                          marginLeft: '2px',
+                          animation: 'blink 1s infinite',
+                          display: 'inline-block',
+                        }}
+                      >
+                        ▊
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
             }
@@ -189,6 +204,17 @@ export const MessageBlock: React.FC<MessageBlockProps> = ({
             content={
               <div style={{ wordWrap: 'break-word' }}>
                 <MarkdownRenderer content={textAfterTools} inline />
+                {isStreaming && (
+                  <span
+                    style={{
+                      marginLeft: '2px',
+                      animation: 'blink 1s infinite',
+                      display: 'inline-block',
+                    }}
+                  >
+                    ▊
+                  </span>
+                )}
               </div>
             }
             variant="outlined"

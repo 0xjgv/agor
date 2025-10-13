@@ -509,9 +509,209 @@ query({
 
 ---
 
+---
+
+## Streaming Responses
+
+**Status:** In Design (see [[explorations/chunking-responses]])
+
+### Problem
+
+Long agent responses (30s-60s) appear suddenly after generation completes. Users have no feedback during generation, creating poor UX.
+
+### Solution
+
+Optional streaming via callback interface:
+
+1. **Streaming is OPTIONAL** - Not all agents support it (e.g., Cursor may lack streaming API)
+2. **Final message is MANDATORY** - All agents MUST call `messagesService.create()` with complete message
+3. **Streaming via callbacks** - Agents that support streaming use `StreamingCallbacks` interface
+
+### Interface
+
+```typescript
+/**
+ * Streaming callback interface for agents that support real-time streaming
+ */
+export interface StreamingCallbacks {
+  onStreamStart(messageId: MessageID, metadata: { session_id; task_id; role; timestamp }): void;
+  onStreamChunk(messageId: MessageID, chunk: string): void; // 3-10 words recommended
+  onStreamEnd(messageId: MessageID): void;
+  onStreamError(messageId: MessageID, error: Error): void;
+}
+
+interface ITool {
+  executeTask?(
+    sessionId: string,
+    prompt: string,
+    taskId?: string,
+    streamingCallbacks?: StreamingCallbacks // Optional for backward compatibility
+  ): Promise<TaskResult>;
+}
+```
+
+### Implementation Contract
+
+**All agents MUST:**
+
+- ✅ Call `messagesService.create()` with complete message when done
+- ✅ Broadcast complete message via FeathersJS (automatic via service)
+
+**Streaming-capable agents MAY:**
+
+- ✅ Call `streamingCallbacks` during execution for progressive UX
+- ✅ Set `supportsStreaming: true` in capabilities
+- ✅ Chunk at 3-10 words for optimal UX/performance balance
+
+**Non-streaming agents:**
+
+- ✅ Set `supportsStreaming: false` in capabilities
+- ✅ Ignore `streamingCallbacks` parameter
+- ✅ Users see loading spinner, then full message appears
+
+### Updated Capabilities Matrix
+
+| Feature               | Claude (Agent SDK)      | Cursor | Codex                   | Gemini                  |
+| --------------------- | ----------------------- | ------ | ----------------------- | ----------------------- |
+| Session management    | ✅ Built-in             | ❓ TBD | 🟡 Emulated             | 🟡 Emulated             |
+| Project instructions  | ✅ CLAUDE.md            | ❓ TBD | ❌ Manual               | ❌ Manual               |
+| Preset system prompts | ✅ Yes                  | ❌ No  | ❌ No                   | ❌ No                   |
+| Tool execution        | ✅ Built-in             | ❓ TBD | 🟡 Via function calling | 🟡 Via function calling |
+| **Streaming**         | **✅ Async generators** | ❓ TBD | 🟡 SSE                  | 🟡 SSE                  |
+| Git awareness         | ✅ Built-in             | ❓ TBD | ❌ No                   | ❌ No                   |
+| Working directory     | ✅ cwd option           | ❓ TBD | ❌ No                   | ❌ No                   |
+
+### Example: Claude with Streaming
+
+```typescript
+export class ClaudeTool implements ITool {
+  getCapabilities(): ToolCapabilities {
+    return { /* ... */, supportsStreaming: true };
+  }
+
+  async executeTask(
+    sessionId: SessionID,
+    prompt: string,
+    taskId?: TaskID,
+    streamingCallbacks?: StreamingCallbacks
+  ): Promise<TaskResult> {
+    const assistantMessageId = uuidv7() as MessageID;
+    let fullContent = '';
+
+    // OPTIONAL: Stream if callbacks provided
+    if (streamingCallbacks) {
+      streamingCallbacks.onStreamStart(assistantMessageId, { /* metadata */ });
+
+      // Stream via Claude Agent SDK
+      const result = query({ prompt, options: { stream: true } });
+      let buffer = '';
+
+      for await (const chunk of result) {
+        if (chunk.type === 'text') {
+          fullContent += chunk.text;
+          buffer += chunk.text;
+
+          // Flush every 3-5 words
+          if (shouldFlush(buffer)) {
+            streamingCallbacks.onStreamChunk(assistantMessageId, buffer);
+            buffer = '';
+          }
+        }
+      }
+
+      streamingCallbacks.onStreamEnd(assistantMessageId);
+    } else {
+      // No streaming - execute and wait
+      const result = await query({ prompt });
+      fullContent = result.message;
+    }
+
+    // MANDATORY: Write complete message to DB
+    await this.messagesService.create({
+      message_id: assistantMessageId,
+      content: fullContent,
+      // ...
+    });
+
+    return { /* ... */ };
+  }
+}
+```
+
+### Example: Cursor without Streaming
+
+```typescript
+export class CursorTool implements ITool {
+  getCapabilities(): ToolCapabilities {
+    return { /* ... */, supportsStreaming: false };
+  }
+
+  async executeTask(
+    sessionId: SessionID,
+    prompt: string,
+    taskId?: TaskID,
+    streamingCallbacks?: StreamingCallbacks // Ignored
+  ): Promise<TaskResult> {
+    // Execute via Cursor CLI (blocks until complete)
+    const result = await execCursorCLI(['run', prompt]);
+
+    // MANDATORY: Write complete message to DB
+    await this.messagesService.create({
+      message_id: uuidv7() as MessageID,
+      content: result.stdout,
+      // ...
+    });
+
+    return { /* ... */ };
+  }
+}
+```
+
+### Daemon Integration
+
+The daemon creates `StreamingCallbacks` that emit FeathersJS events:
+
+```typescript
+const streamingCallbacks: StreamingCallbacks = {
+  onStreamStart: (msgId, metadata) => {
+    app.service('messages').emit('streaming:start', { message_id: msgId, ...metadata });
+  },
+  onStreamChunk: (msgId, chunk) => {
+    app.service('messages').emit('streaming:chunk', { message_id: msgId, chunk });
+  },
+  onStreamEnd: msgId => {
+    app.service('messages').emit('streaming:end', { message_id: msgId });
+  },
+  onStreamError: (msgId, error) => {
+    app.service('messages').emit('streaming:error', { message_id: msgId, error: error.message });
+  },
+};
+
+tool.executeTask(sessionId, prompt, taskId, streamingCallbacks);
+```
+
+All `streaming:*` events are automatically broadcast to all connected clients via FeathersJS channels!
+
+### UI Integration
+
+The UI is **agent-agnostic**:
+
+1. Listens for `streaming:*` events (shows typewriter effect if they arrive)
+2. Listens for `messages.created` event (always arrives with final message)
+3. Merges streaming + DB messages (DB supersedes streaming when complete)
+
+**User experience:**
+
+- **Claude Code:** Streams chunks → typewriter effect → DB message supersedes
+- **Cursor:** No streaming → loading spinner → DB message appears
+- **Codex/Gemini:** Depends on SDK capabilities
+
+---
+
 ## Related Documentation
 
 - [[explorations/agent-interface]] - Original exploration (archived)
+- [[explorations/chunking-responses]] - Streaming design and implementation
 - [[explorations/native-cli-feature-gaps]] - CLI vs SDK feature comparison
 - [[concepts/models]] - Session and Task data models
 - [[concepts/architecture]] - System architecture overview
@@ -521,6 +721,7 @@ query({
 ## Next Steps
 
 1. Complete Agent SDK migration (see checklist above)
-2. Test CLAUDE.md loading in real usage
-3. Document findings for second agent integration
-4. Archive `explorations/agent-interface.md` (superseded by this doc)
+2. **Implement streaming for ClaudeTool** (see [[explorations/chunking-responses]])
+3. Test CLAUDE.md loading in real usage
+4. Document findings for second agent integration
+5. Archive `explorations/agent-interface.md` (superseded by this doc)
