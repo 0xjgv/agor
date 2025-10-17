@@ -640,13 +640,8 @@ const SessionCanvas = ({
                   // If zone has a trigger, show confirmation modal AFTER pinning
                   if (zoneTrigger) {
                     const zoneName = zoneObject.label || 'Unknown Zone';
-                    console.log(
-                      `🎯 Zone ${overlappingZone.id.substring(0, 8)} has trigger - preparing modal`,
-                      { zoneTrigger, zoneName, sessionId: nodeId }
-                    );
                     // Use setTimeout to show modal after the layout update completes
                     setTimeout(() => {
-                      console.log('🎯 Setting trigger modal state now...');
                       setTriggerModal({
                         sessionId: nodeId,
                         zoneName,
@@ -658,14 +653,6 @@ const SessionCanvas = ({
                         },
                       });
                     }, 600); // Wait for debounce to complete
-                    console.log(
-                      `🎯 Zone ${overlappingZone.id.substring(0, 8)} has trigger - will show confirmation modal after pin`
-                    );
-                  } else {
-                    console.log(
-                      `ℹ️  Zone ${overlappingZone.id.substring(0, 8)} has no trigger configured`,
-                      { zoneObject }
-                    );
                   }
                 }
               } else if (!overlappingZone && currentParentId) {
@@ -1019,7 +1006,6 @@ const SessionCanvas = ({
       {/* Trigger confirmation modal */}
       {triggerModal &&
         (() => {
-          console.log('🎯 Rendering trigger modal:', triggerModal);
           // Pre-render the template for display in modal
           const session = sessions.find(s => s.session_id === triggerModal.sessionId);
           let renderedPromptPreview = triggerModal.trigger.text;

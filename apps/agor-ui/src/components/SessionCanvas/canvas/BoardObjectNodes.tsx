@@ -110,13 +110,7 @@ const ZoneNodeComponent = ({ data, selected }: { data: ZoneNodeData; selected?: 
 
   const handleColorChange = (color: string) => {
     if (data.onUpdate) {
-      const updatedData = createObjectData({ color });
-      console.log(`🎨 Zone ${data.objectId.substring(0, 8)} color change:`, {
-        oldColor: data.color,
-        newColor: color,
-        updatedData,
-      });
-      data.onUpdate(data.objectId, updatedData);
+      data.onUpdate(data.objectId, createObjectData({ color }));
     }
   };
 
