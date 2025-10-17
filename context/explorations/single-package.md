@@ -51,7 +51,7 @@ agor (npm package)
 ```bash
 npm install -g agor
 agor init                 # Creates ~/.agor/, starts daemon
-agor                      # Opens browser → http://localhost:3030
+agor start                # Opens browser → http://localhost:3030
 agor session list         # CLI commands (daemon auto-starts)
 ```
 
