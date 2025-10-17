@@ -12,7 +12,6 @@
 import type { Message, Task, User } from '@agor/core/types';
 import {
   CheckCircleOutlined,
-  ClockCircleOutlined,
   CloseCircleOutlined,
   DownOutlined,
   FileTextOutlined,
@@ -169,7 +168,7 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({
     }
   };
 
-  const getStatusColor = () => {
+  const _getStatusColor = () => {
     switch (task.status) {
       case 'completed':
         return 'success';

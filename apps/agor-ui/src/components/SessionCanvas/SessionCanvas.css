@@ -1,25 +1,19 @@
 /* Adjust MiniMap panel to have more bottom spacing */
 .react-flow__panel.bottom.right {
-  margin-bottom: 25px !important;
-}
-
-/* Eraser mode cursor for deletable objects */
-.react-flow__node.eraser-mode {
-  cursor: pointer !important;
-}
-
-/* Override drag cursor in eraser mode */
-.react-flow__node.eraser-mode * {
-  cursor: pointer !important;
+  margin-bottom: 25px;
 }
 
 /* Tool mode cursors - override React Flow defaults */
 .react-flow.tool-mode-zone .react-flow__pane {
-  cursor: crosshair !important;
+  cursor: crosshair;
 }
 
 .react-flow.tool-mode-eraser .react-flow__pane {
-  cursor: pointer !important;
+  cursor: pointer;
+}
+
+.react-flow.tool-mode-eraser .react-flow__node.zone {
+  cursor: pointer;
 }
 
 /* Select mode uses default grab/grabbing cursors from React Flow */

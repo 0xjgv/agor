@@ -147,7 +147,7 @@ export function useStreamingMessages(
         const newMap = new Map(prev);
         newMap.set(data.message_id, {
           ...message,
-          content: message.content + `\n\n[Error: ${data.error}]`,
+          content: `${message.content}\n\n[Error: ${data.error}]`,
         });
         return newMap;
       });

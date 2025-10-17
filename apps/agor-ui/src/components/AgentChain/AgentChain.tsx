@@ -21,7 +21,6 @@ import {
   DownOutlined,
   FileTextOutlined,
   RightOutlined,
-  ToolOutlined,
 } from '@ant-design/icons';
 import type { ThoughtChainProps } from '@ant-design/x';
 import { ThoughtChain } from '@ant-design/x';
@@ -233,7 +232,7 @@ export const AgentChain: React.FC<AgentChainProps> = ({ messages }) => {
   };
 
   // Build ThoughtChain items
-  const thoughtChainItems: ThoughtChainProps['items'] = chainItems.map((item, index) => {
+  const thoughtChainItems: ThoughtChainProps['items'] = chainItems.map((item, _index) => {
     if (item.type === 'thought') {
       const thoughtContent = item.content as string;
 
@@ -343,7 +342,7 @@ export const AgentChain: React.FC<AgentChainProps> = ({ messages }) => {
     </Space>
   );
 
-  const totalCount = stats.thoughtCount + stats.toolCount;
+  const _totalCount = stats.thoughtCount + stats.toolCount;
   const hasErrors = stats.errorCount > 0;
 
   return (

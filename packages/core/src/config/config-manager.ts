@@ -230,7 +230,7 @@ export async function setConfigValue(key: string, value: string | boolean | numb
   } else {
     // Nested key (e.g., "credentials.ANTHROPIC_API_KEY")
     const section = parts[0];
-    const subKey = parts.slice(1).join('.');
+    const _subKey = parts.slice(1).join('.');
 
     // biome-ignore lint/suspicious/noExplicitAny: Dynamic config access
     if (!(config as any)[section]) {

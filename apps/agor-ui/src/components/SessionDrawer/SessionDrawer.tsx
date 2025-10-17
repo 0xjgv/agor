@@ -3,9 +3,7 @@ import type { MCPServer, PermissionMode, User } from '@agor/core/types';
 import {
   ApiOutlined,
   BranchesOutlined,
-  DownOutlined,
   ForkOutlined,
-  GithubOutlined,
   SafetyOutlined,
   SendOutlined,
   SettingOutlined,
@@ -15,8 +13,6 @@ import {
   Button,
   Divider,
   Drawer,
-  Dropdown,
-  Flex,
   Input,
   Select,
   Space,
@@ -32,7 +28,6 @@ import { CreatedByTag } from '../metadata';
 import {
   BranchPill,
   ConceptPill,
-  DirtyStatePill,
   ForkPill,
   GitShaPill,
   MessageCountPill,
@@ -168,7 +163,7 @@ const SessionDrawer = ({
 
   // Check if git state is dirty
   const isDirty = session.git_state.current_sha.endsWith('-dirty');
-  const cleanSha = session.git_state.current_sha.replace('-dirty', '');
+  const _cleanSha = session.git_state.current_sha.replace('-dirty', '');
 
   return (
     <Drawer
@@ -279,8 +274,8 @@ const SessionDrawer = ({
               .map(serverId => mcpServers.find(s => s.mcp_server_id === serverId))
               .filter(Boolean)
               .map(server => (
-                <Tag key={server!.mcp_server_id} color="purple" icon={<ApiOutlined />}>
-                  {server!.display_name || server!.name}
+                <Tag key={server?.mcp_server_id} color="purple" icon={<ApiOutlined />}>
+                  {server?.display_name || server?.name}
                 </Tag>
               ))}
           </Space>

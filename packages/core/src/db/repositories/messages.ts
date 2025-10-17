@@ -8,7 +8,7 @@
 import type { Message, MessageID, SessionID, TaskID, UUID } from '@agor/core/types';
 import { eq } from 'drizzle-orm';
 import type { Database } from '../client';
-import { type MessageInsert, type MessageRow, messages, sessions, tasks } from '../schema';
+import { type MessageInsert, type MessageRow, messages } from '../schema';
 
 export class MessagesRepository {
   constructor(private db: Database) {}

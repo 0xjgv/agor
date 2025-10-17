@@ -5,7 +5,7 @@
  */
 
 import type { Board, BoardObject, UUID } from '@agor/core/types';
-import { eq, like, sql } from 'drizzle-orm';
+import { eq, like } from 'drizzle-orm';
 import type { Database } from '../client';
 import { formatShortId, generateId } from '../ids';
 import { type BoardInsert, type BoardRow, boards } from '../schema';

@@ -963,35 +963,58 @@ async function main() {
   // Error handling
   app.use(errorHandler());
 
-  // Start server
-  app.listen(PORT).then(() => {
-    console.log(`🚀 Agor daemon running at http://localhost:${PORT}`);
-    console.log(`   Health: http://localhost:${PORT}/health`);
-    console.log(
-      `   Authentication: ${config.daemon?.allowAnonymous !== false ? '🔓 Anonymous (default)' : '🔐 Required'}`
-    );
-    console.log(`   Login: POST http://localhost:${PORT}/authentication`);
-    console.log(`   Services:`);
-    console.log(`     - /sessions`);
-    console.log(`     - /tasks`);
-    console.log(`     - /messages`);
-    console.log(`     - /boards`);
-    console.log(`     - /repos`);
-    console.log(`     - /mcp-servers`);
-    console.log(`     - /context`);
-    console.log(`     - /users`);
-  });
+  // Start server and store reference for shutdown
+  const server = await app.listen(PORT);
 
-  // Graceful shutdown
-  process.on('SIGTERM', () => {
-    console.log('\n⏳ Shutting down gracefully...');
-    process.exit(0);
-  });
+  console.log(`🚀 Agor daemon running at http://localhost:${PORT}`);
+  console.log(`   Health: http://localhost:${PORT}/health`);
+  console.log(
+    `   Authentication: ${config.daemon?.allowAnonymous !== false ? '🔓 Anonymous (default)' : '🔐 Required'}`
+  );
+  console.log(`   Login: POST http://localhost:${PORT}/authentication`);
+  console.log(`   Services:`);
+  console.log(`     - /sessions`);
+  console.log(`     - /tasks`);
+  console.log(`     - /messages`);
+  console.log(`     - /boards`);
+  console.log(`     - /repos`);
+  console.log(`     - /mcp-servers`);
+  console.log(`     - /context`);
+  console.log(`     - /users`);
 
-  process.on('SIGINT', () => {
-    console.log('\n⏳ Shutting down gracefully...');
-    process.exit(0);
-  });
+  // Graceful shutdown handler
+  const shutdown = async (signal: string) => {
+    console.log(`\n⏳ Received ${signal}, shutting down gracefully...`);
+
+    try {
+      // Close server and all connections
+      await new Promise<void>((resolve, reject) => {
+        server.close(err => {
+          if (err) {
+            console.error('❌ Error closing server:', err);
+            reject(err);
+          } else {
+            console.log('✅ Server closed');
+            resolve();
+          }
+        });
+      });
+
+      // Force exit after 2 seconds if cleanup hangs
+      setTimeout(() => {
+        console.log('⚠️  Forcing exit after timeout');
+        process.exit(0);
+      }, 2000);
+
+      process.exit(0);
+    } catch (error) {
+      console.error('❌ Error during shutdown:', error);
+      process.exit(1);
+    }
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 // Start the daemon

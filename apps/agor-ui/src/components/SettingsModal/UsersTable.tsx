@@ -1,11 +1,5 @@
 import type { CreateUserInput, UpdateUserInput, User } from '@agor/core/types';
-import {
-  DeleteOutlined,
-  EditOutlined,
-  PlusOutlined,
-  SmileOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, PlusOutlined, SmileOutlined } from '@ant-design/icons';
 import {
   Button,
   Form,
@@ -87,7 +81,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({ users, onCreate, onUpdat
           role: values.role,
         };
         // Only include password if it was provided
-        if (values.password && values.password.trim()) {
+        if (values.password?.trim()) {
           updates.password = values.password;
         }
         onUpdate?.(editingUser.user_id, updates);

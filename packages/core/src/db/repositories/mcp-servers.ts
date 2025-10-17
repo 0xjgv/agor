@@ -11,7 +11,7 @@ import type {
   MCPServerID,
   UpdateMCPServerInput,
 } from '@agor/core/types';
-import { and, eq, like, or, sql } from 'drizzle-orm';
+import { and, eq, like } from 'drizzle-orm';
 import type { Database } from '../client';
 import { formatShortId, generateId } from '../ids';
 import { type MCPServerInsert, type MCPServerRow, mcpServers } from '../schema';

@@ -66,7 +66,7 @@ export default class ConfigIndex extends Command {
         this.log(chalk.bold('\nCredentials:'));
         for (const [key, value] of Object.entries(config.credentials)) {
           if (value) {
-            this.log(`  ${key.padEnd(20)}: ${chalk.gray('***' + value.slice(-4))}`);
+            this.log(`  ${key.padEnd(20)}: ${chalk.gray(`***${value.slice(-4)}`)}`);
           }
         }
       }
@@ -86,7 +86,7 @@ export default class ConfigIndex extends Command {
         }
         if (daemonConfig.jwtSecret) {
           this.log(
-            `  JWT secret:    ${chalk.gray('***' + daemonConfig.jwtSecret.slice(-8))} ${chalk.dim('(saved)')}`
+            `  JWT secret:    ${chalk.gray(`***${daemonConfig.jwtSecret.slice(-8)}`)} ${chalk.dim('(saved)')}`
           );
         }
         if (daemonConfig.allowAnonymous !== undefined) {

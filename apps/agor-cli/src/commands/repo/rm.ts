@@ -127,7 +127,7 @@ export default class RepoRm extends Command {
       // biome-ignore lint/suspicious/noExplicitAny: Feathers service methods not properly typed
       await (reposService as any).remove(repo.repo_id);
 
-      this.log(chalk.green('✓') + ' Repository removed from database');
+      this.log(`${chalk.green('✓')} Repository removed from database`);
 
       // Ask about deleting local files (unless --delete-files flag was passed)
       let deleteFiles = flags['delete-files'];
@@ -152,7 +152,7 @@ export default class RepoRm extends Command {
         // Delete main repo
         try {
           await fs.rm(repo.local_path, { recursive: true, force: true });
-          this.log(chalk.green('✓') + ' Main repo deleted: ' + chalk.dim(repo.local_path));
+          this.log(`${chalk.green('✓')} Main repo deleted: ${chalk.dim(repo.local_path)}`);
         } catch (error) {
           this.warn(
             `Failed to delete main repo: ${error instanceof Error ? error.message : String(error)}`
@@ -164,7 +164,7 @@ export default class RepoRm extends Command {
           for (const wt of repo.worktrees) {
             try {
               await fs.rm(wt.path, { recursive: true, force: true });
-              this.log(chalk.green('✓') + ' Worktree deleted: ' + chalk.dim(wt.name));
+              this.log(`${chalk.green('✓')} Worktree deleted: ${chalk.dim(wt.name)}`);
             } catch (error) {
               this.warn(
                 `Failed to delete worktree ${wt.name}: ${error instanceof Error ? error.message : String(error)}`

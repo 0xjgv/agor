@@ -16,9 +16,8 @@ import type { MCPServerRepository } from '../../db/repositories/mcp-servers';
 import type { MessagesRepository } from '../../db/repositories/messages';
 import type { SessionMCPServerRepository } from '../../db/repositories/session-mcp-servers';
 import type { SessionRepository } from '../../db/repositories/sessions';
-import type { TaskRepository } from '../../db/repositories/tasks';
 import type { PermissionService } from '../../permissions/permission-service';
-import type { Message, MessageID, SessionID, TaskID, ToolUse } from '../../types';
+import type { Message, MessageID, SessionID, TaskID } from '../../types';
 import type { ImportOptions, ITool, SessionData, ToolCapabilities } from '../base';
 import { loadClaudeSession } from './import/load-session';
 import { transcriptsToMessages } from './import/message-converter';
@@ -62,13 +61,13 @@ export class ClaudeTool implements ITool {
   constructor(
     private messagesRepo?: MessagesRepository,
     private sessionsRepo?: SessionRepository,
-    private apiKey?: string,
+    apiKey?: string,
     private messagesService?: MessagesService,
-    private sessionMCPRepo?: SessionMCPServerRepository,
-    private mcpServerRepo?: MCPServerRepository,
-    private permissionService?: PermissionService,
+    sessionMCPRepo?: SessionMCPServerRepository,
+    mcpServerRepo?: MCPServerRepository,
+    permissionService?: PermissionService,
     private tasksService?: TasksService,
-    private sessionsService?: SessionsService
+    sessionsService?: SessionsService
   ) {
     if (messagesRepo && sessionsRepo) {
       this.promptService = new ClaudePromptService(
@@ -284,7 +283,7 @@ export class ClaudeTool implements ITool {
       task_id: taskId,
     };
 
-    await this.messagesService!.create(userMessage);
+    await this.messagesService?.create(userMessage);
     return userMessage;
   }
 
@@ -347,7 +346,7 @@ export class ClaudeTool implements ITool {
       },
     };
 
-    await this.messagesService!.create(message);
+    await this.messagesService?.create(message);
 
     // If task exists, update it with resolved model
     if (taskId && resolvedModel && this.tasksService) {

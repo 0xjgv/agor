@@ -1,4 +1,4 @@
-import type { MCPServer, PermissionMode } from '@agor/core/types';
+import type { MCPServer } from '@agor/core/types';
 import { Divider, Form, Input, Modal } from 'antd';
 import React from 'react';
 import type { Session } from '../../types';

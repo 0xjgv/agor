@@ -67,11 +67,16 @@ export interface Board {
    *
    * Maps session_id -> {x, y} coordinates for React Flow
    * Updated on drag events, isolated from other board operations
+   *
+   * Optional parentId pins session to a zone (zone ID)
+   * - When parentId is set, x/y are relative to zone's position
+   * - When parentId is undefined, x/y are absolute canvas coordinates
    */
   layout?: {
     [sessionId: string]: {
       x: number;
       y: number;
+      parentId?: string; // Zone ID if pinned, undefined if unpinned
     };
   };
 

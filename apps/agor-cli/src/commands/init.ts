@@ -132,18 +132,18 @@ export default class Init extends Command {
       this.log('');
 
       if (dbExists && dbStats) {
-        this.log(chalk.cyan('  Database:') + ` ${dbPath}`);
+        this.log(`${chalk.cyan('  Database:')} ${dbPath}`);
         this.log(
           chalk.dim(
             `    ${dbStats.sessions} sessions, ${dbStats.tasks} tasks, ${dbStats.messages} messages, ${dbStats.repos} repos`
           )
         );
       } else if (dbExists) {
-        this.log(chalk.cyan('  Database:') + ` ${dbPath}`);
+        this.log(`${chalk.cyan('  Database:')} ${dbPath}`);
       }
 
       if (repos.length > 0) {
-        this.log(chalk.cyan('  Repos:') + ` ${reposDir}`);
+        this.log(`${chalk.cyan('  Repos:')} ${reposDir}`);
         for (const repo of repos.slice(0, 5)) {
           this.log(chalk.dim(`    - ${repo}`));
         }
@@ -153,7 +153,7 @@ export default class Init extends Command {
       }
 
       if (worktrees.length > 0) {
-        this.log(chalk.cyan('  Worktrees:') + ` ${worktreesDir}`);
+        this.log(`${chalk.cyan('  Worktrees:')} ${worktreesDir}`);
         for (const wt of worktrees.slice(0, 5)) {
           this.log(chalk.dim(`    - ${wt}`));
         }
@@ -202,7 +202,7 @@ export default class Init extends Command {
    * Clean up existing installation
    */
   private async cleanupExisting(
-    baseDir: string,
+    _baseDir: string,
     dbPath: string,
     reposDir: string,
     worktreesDir: string
@@ -213,19 +213,19 @@ export default class Init extends Command {
     // Delete database
     if (await this.pathExists(dbPath)) {
       await rm(dbPath, { force: true });
-      this.log(chalk.green('   ✓') + ' Deleted database');
+      this.log(`${chalk.green('   ✓')} Deleted database`);
     }
 
     // Delete repos
     if (await this.pathExists(reposDir)) {
       await rm(reposDir, { recursive: true, force: true });
-      this.log(chalk.green('   ✓') + ' Deleted repos');
+      this.log(`${chalk.green('   ✓')} Deleted repos`);
     }
 
     // Delete worktrees
     if (await this.pathExists(worktreesDir)) {
       await rm(worktreesDir, { recursive: true, force: true });
-      this.log(chalk.green('   ✓') + ' Deleted worktrees');
+      this.log(`${chalk.green('   ✓')} Deleted worktrees`);
     }
   }
 
@@ -250,7 +250,7 @@ export default class Init extends Command {
 
     for (const dir of dirs) {
       await mkdir(dir, { recursive: true });
-      this.log(chalk.green('   ✓') + ` ${dir}`);
+      this.log(`${chalk.green('   ✓')} ${dir}`);
     }
 
     // Initialize database
@@ -259,13 +259,13 @@ export default class Init extends Command {
     const db = createDatabase({ url: `file:${dbPath}` });
 
     await initializeDatabase(db);
-    this.log(chalk.green('   ✓') + ` Created ${dbPath}`);
+    this.log(`${chalk.green('   ✓')} Created ${dbPath}`);
 
     // Seed initial data
     this.log('');
     this.log('🌱 Seeding initial data...');
     await seedInitialData(db);
-    this.log(chalk.green('   ✓') + ' Created default board');
+    this.log(`${chalk.green('   ✓')} Created default board`);
 
     // Prompt for auth/multiplayer setup (unless --force)
     if (!skipPrompts) {
@@ -276,11 +276,11 @@ export default class Init extends Command {
     this.log('');
     this.log(chalk.green.bold('✅ Agor initialized successfully!'));
     this.log('');
-    this.log('   Database: ' + chalk.cyan(dbPath));
-    this.log('   Repos: ' + chalk.cyan(join(baseDir, 'repos')));
-    this.log('   Worktrees: ' + chalk.cyan(join(baseDir, 'worktrees')));
-    this.log('   Concepts: ' + chalk.cyan(join(baseDir, 'concepts')));
-    this.log('   Logs: ' + chalk.cyan(join(baseDir, 'logs')));
+    this.log(`   Database: ${chalk.cyan(dbPath)}`);
+    this.log(`   Repos: ${chalk.cyan(join(baseDir, 'repos'))}`);
+    this.log(`   Worktrees: ${chalk.cyan(join(baseDir, 'worktrees'))}`);
+    this.log(`   Concepts: ${chalk.cyan(join(baseDir, 'concepts'))}`);
+    this.log(`   Logs: ${chalk.cyan(join(baseDir, 'logs'))}`);
     this.log('');
     this.log(chalk.bold('Next steps:'));
     this.log("   - Run 'agor daemon' to start the daemon");
@@ -315,7 +315,7 @@ export default class Init extends Command {
     // Enable auth in config
     await setConfigValue('daemon.requireAuth', true);
     await setConfigValue('daemon.allowAnonymous', false);
-    this.log(chalk.green('   ✓') + ' Enabled authentication');
+    this.log(`${chalk.green('   ✓')} Enabled authentication`);
 
     // Prompt to create admin user
     this.log('');

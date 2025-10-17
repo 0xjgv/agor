@@ -1,5 +1,4 @@
 import type { User } from '@agor/core/types';
-import { UserOutlined } from '@ant-design/icons';
 import { Space, Tooltip } from 'antd';
 
 export interface UserAvatarProps {

@@ -6,7 +6,7 @@
 //
 // See: context/explorations/mcp-integration.md for full design
 
-import type { SessionID, TaskID, UserID, UUID } from './id';
+import type { SessionID, UserID, UUID } from './id';
 
 /**
  * MCP Server ID (branded UUID)

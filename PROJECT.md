@@ -88,6 +88,7 @@ See [context/explorations/](context/explorations/) for detailed designs:
 - figure out project / attach github metadata (issue and PR links)
 - attach proper git sha to tasks: what was the latest commit when the task was created, mark whether -dirty or not
 - integrate concepts and reports in the information architecture
+- proper tool uses for codex, also improve storybook for various common tools, start thinking about the todo tool and the write (diff) tool too!
 
 # Nice to have
 

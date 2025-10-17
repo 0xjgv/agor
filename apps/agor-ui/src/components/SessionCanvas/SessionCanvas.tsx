@@ -166,19 +166,24 @@ const SessionCanvas = ({
       const currentLayout = board.layout?.[sessionId];
       if (!currentLayout?.parentId) return;
 
-      // Get positions from board.layout
+      // Get session position from board.layout
       const sessionLayout = board.layout[sessionId];
-      const parentLayout = board.layout[currentLayout.parentId];
+      // Get parent zone position from board.objects (zones are board objects, not in layout)
+      const parentZone = board.objects?.[currentLayout.parentId];
 
-      if (!sessionLayout || !parentLayout) {
-        console.error('Cannot unpin: missing layout data');
+      if (!sessionLayout || !parentZone) {
+        console.error('Cannot unpin: missing layout data', {
+          sessionLayout: !!sessionLayout,
+          parentZone: !!parentZone,
+          parentId: currentLayout.parentId,
+        });
         return;
       }
 
       // Calculate absolute position from relative position
-      // Session's layout position is relative to parent, so add parent's position
-      const absoluteX = sessionLayout.x + parentLayout.x;
-      const absoluteY = sessionLayout.y + parentLayout.y;
+      // Session's layout position is relative to parent zone, so add zone's position
+      const absoluteX = sessionLayout.x + parentZone.x;
+      const absoluteY = sessionLayout.y + parentZone.y;
 
       // Update layout without parentId
       const newLayout = {
@@ -196,7 +201,7 @@ const SessionCanvas = ({
 
       console.log(`📍 Manually unpinned session ${sessionId.substring(0, 8)}`);
     },
-    [board, client] // REMOVED nodes dependency - this was the root cause!
+    [board, client]
   );
 
   // Convert sessions to React Flow nodes

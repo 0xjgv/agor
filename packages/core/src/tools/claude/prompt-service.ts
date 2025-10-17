@@ -20,7 +20,7 @@ import type { MessagesRepository } from '../../db/repositories/messages';
 import type { SessionMCPServerRepository } from '../../db/repositories/session-mcp-servers';
 import type { SessionRepository } from '../../db/repositories/sessions';
 import type { PermissionService } from '../../permissions/permission-service';
-import type { MCPServersConfig, Message, SessionID, TaskID } from '../../types';
+import type { MCPServersConfig, SessionID, TaskID } from '../../types';
 import type { SessionsService, TasksService } from './claude-tool';
 import { DEFAULT_CLAUDE_MODEL } from './models';
 
@@ -82,7 +82,7 @@ export class ClaudePromptService {
   private static readonly ENABLE_TOKEN_STREAMING = true;
 
   constructor(
-    private messagesRepo: MessagesRepository,
+    _messagesRepo: MessagesRepository,
     private sessionsRepo: SessionRepository,
     private apiKey?: string,
     private sessionMCPRepo?: SessionMCPServerRepository,
@@ -691,7 +691,7 @@ export class ClaudePromptService {
     prompt: string,
     taskId?: TaskID,
     permissionMode?: PermissionMode,
-    chunkCallback?: (messageId: string, chunk: string) => void
+    _chunkCallback?: (messageId: string, chunk: string) => void
   ): AsyncGenerator<{
     type: 'partial' | 'complete';
     textChunk?: string; // For partial streaming events

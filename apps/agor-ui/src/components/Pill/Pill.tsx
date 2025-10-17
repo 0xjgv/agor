@@ -11,7 +11,7 @@ import {
   MessageOutlined,
   ToolOutlined,
 } from '@ant-design/icons';
-import { message, Tag, type TagProps, theme } from 'antd';
+import { message, Tag, theme } from 'antd';
 import type React from 'react';
 
 /**

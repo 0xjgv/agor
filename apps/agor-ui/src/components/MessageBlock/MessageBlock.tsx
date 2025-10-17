@@ -10,7 +10,7 @@
  */
 
 import type { Message, User } from '@agor/core/types';
-import { RobotOutlined, UserOutlined } from '@ant-design/icons';
+import { RobotOutlined } from '@ant-design/icons';
 import { Bubble } from '@ant-design/x';
 import { Avatar, theme } from 'antd';
 import type React from 'react';

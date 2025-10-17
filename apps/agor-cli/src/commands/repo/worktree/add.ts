@@ -5,7 +5,6 @@
  */
 
 import { createClient, isDaemonRunning } from '@agor/core/api';
-import { hasRemoteBranch } from '@agor/core/git';
 import type { Repo } from '@agor/core/types';
 import { Args, Command, Flags } from '@oclif/core';
 import chalk from 'chalk';

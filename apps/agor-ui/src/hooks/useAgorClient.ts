@@ -5,7 +5,7 @@
  */
 
 import type { AgorClient } from '@agor/core/api';
-import { createClient, isDaemonRunning } from '@agor/core/api';
+import { createClient } from '@agor/core/api';
 import { useEffect, useRef, useState } from 'react';
 
 interface UseAgorClientResult {
@@ -70,7 +70,7 @@ export function useAgorClient(options: UseAgorClientOptions = {}): UseAgorClient
         }
       });
 
-      client.io.on('connect_error', (err: Error) => {
+      client.io.on('connect_error', (_err: Error) => {
         if (mounted) {
           setError('Daemon is not running. Start it with: cd apps/agor-daemon && pnpm dev');
           setConnecting(false);
@@ -104,7 +104,7 @@ export function useAgorClient(options: UseAgorClientOptions = {}): UseAgorClient
             reject(err);
           });
         });
-      } catch (err) {
+      } catch (_err) {
         if (mounted) {
           setError('Failed to connect to daemon. Make sure it is running on :3030');
           setConnecting(false);
@@ -127,7 +127,7 @@ export function useAgorClient(options: UseAgorClientOptions = {}): UseAgorClient
             strategy: 'anonymous',
           });
         }
-      } catch (err) {
+      } catch (_err) {
         if (mounted) {
           setError(
             accessToken

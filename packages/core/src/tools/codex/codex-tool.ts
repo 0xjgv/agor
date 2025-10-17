@@ -26,7 +26,7 @@ export class CodexTool implements ITool {
   constructor(
     private messagesRepo?: MessagesRepository,
     private sessionsRepo?: SessionRepository,
-    private apiKey?: string,
+    apiKey?: string,
     private messagesService?: MessagesService,
     private tasksService?: TasksService
   ) {
@@ -208,7 +208,7 @@ export class CodexTool implements ITool {
       task_id: taskId,
     };
 
-    await this.messagesService!.create(userMessage);
+    await this.messagesService?.create(userMessage);
     return userMessage;
   }
 
@@ -269,7 +269,7 @@ export class CodexTool implements ITool {
       },
     };
 
-    await this.messagesService!.create(message);
+    await this.messagesService?.create(message);
 
     // If task exists, update it with resolved model
     if (taskId && resolvedModel && this.tasksService) {

@@ -10,7 +10,6 @@
  * (like AgentChain) are responsible for wrapping this in ThoughtChain items.
  */
 
-import type { Message } from '@agor/core/types';
 import { Typography, theme } from 'antd';
 import type React from 'react';
 

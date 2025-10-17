@@ -242,7 +242,7 @@ function AppContent() {
         message.success('Session created and added to board!');
 
         // If there's an initial prompt, send it to the agent
-        if (config.initialPrompt && config.initialPrompt.trim()) {
+        if (config.initialPrompt?.trim()) {
           await handleSendPrompt(session.session_id, config.initialPrompt, config.permissionMode);
         }
       } catch (error) {
@@ -541,44 +541,42 @@ function AppContent() {
 
   // Render main app
   return (
-    <>
-      <AgorApp
-        client={client}
-        user={user}
-        sessions={sessions}
-        tasks={tasks}
-        availableAgents={mockAgents}
-        boards={boards}
-        repos={repos}
-        users={users}
-        mcpServers={mcpServers}
-        sessionMcpServerIds={sessionMcpServerIds}
-        worktreeOptions={worktreeOptions}
-        repoOptions={repoOptions}
-        initialBoardId={boards[0]?.board_id}
-        onCreateSession={handleCreateSession}
-        onForkSession={handleForkSession}
-        onSpawnSession={handleSpawnSession}
-        onSendPrompt={handleSendPrompt}
-        onUpdateSession={handleUpdateSession}
-        onDeleteSession={handleDeleteSession}
-        onCreateBoard={handleCreateBoard}
-        onUpdateBoard={handleUpdateBoard}
-        onDeleteBoard={handleDeleteBoard}
-        onCreateRepo={handleCreateRepo}
-        onDeleteRepo={handleDeleteRepo}
-        onDeleteWorktree={handleDeleteWorktree}
-        onCreateWorktree={handleCreateWorktree}
-        onCreateUser={handleCreateUser}
-        onUpdateUser={handleUpdateUser}
-        onDeleteUser={handleDeleteUser}
-        onCreateMCPServer={handleCreateMCPServer}
-        onUpdateMCPServer={handleUpdateMCPServer}
-        onDeleteMCPServer={handleDeleteMCPServer}
-        onUpdateSessionMcpServers={handleUpdateSessionMcpServers}
-        onLogout={logout}
-      />
-    </>
+    <AgorApp
+      client={client}
+      user={user}
+      sessions={sessions}
+      tasks={tasks}
+      availableAgents={mockAgents}
+      boards={boards}
+      repos={repos}
+      users={users}
+      mcpServers={mcpServers}
+      sessionMcpServerIds={sessionMcpServerIds}
+      worktreeOptions={worktreeOptions}
+      repoOptions={repoOptions}
+      initialBoardId={boards[0]?.board_id}
+      onCreateSession={handleCreateSession}
+      onForkSession={handleForkSession}
+      onSpawnSession={handleSpawnSession}
+      onSendPrompt={handleSendPrompt}
+      onUpdateSession={handleUpdateSession}
+      onDeleteSession={handleDeleteSession}
+      onCreateBoard={handleCreateBoard}
+      onUpdateBoard={handleUpdateBoard}
+      onDeleteBoard={handleDeleteBoard}
+      onCreateRepo={handleCreateRepo}
+      onDeleteRepo={handleDeleteRepo}
+      onDeleteWorktree={handleDeleteWorktree}
+      onCreateWorktree={handleCreateWorktree}
+      onCreateUser={handleCreateUser}
+      onUpdateUser={handleUpdateUser}
+      onDeleteUser={handleDeleteUser}
+      onCreateMCPServer={handleCreateMCPServer}
+      onUpdateMCPServer={handleUpdateMCPServer}
+      onDeleteMCPServer={handleDeleteMCPServer}
+      onUpdateSessionMcpServers={handleUpdateSessionMcpServers}
+      onLogout={logout}
+    />
   );
 }
 

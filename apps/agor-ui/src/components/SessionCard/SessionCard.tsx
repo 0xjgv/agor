@@ -8,10 +8,10 @@ import {
   ForkOutlined,
   LoadingOutlined,
   PlusCircleOutlined,
+  PushpinFilled,
   SettingOutlined,
 } from '@ant-design/icons';
 import { App, Badge, Button, Card, Collapse, Space, Spin, Tag, Typography } from 'antd';
-import React from 'react';
 import type { Session, Task } from '../../types';
 import { CreatedByTag } from '../metadata';
 import TaskListItem from '../TaskListItem';
@@ -30,6 +30,10 @@ interface SessionCardProps {
   onSessionClick?: () => void;
   onDelete?: (sessionId: string) => void;
   onOpenSettings?: (sessionId: string) => void;
+  onUnpin?: (sessionId: string) => void;
+  isPinned?: boolean;
+  zoneName?: string;
+  zoneColor?: string;
   defaultExpanded?: boolean;
 }
 
@@ -42,6 +46,10 @@ const SessionCard = ({
   onSessionClick,
   onDelete,
   onOpenSettings,
+  onUnpin,
+  isPinned = false,
+  zoneName,
+  zoneColor,
   defaultExpanded = true,
 }: SessionCardProps) => {
   const { modal } = App.useApp();
@@ -116,7 +124,10 @@ const SessionCard = ({
 
   return (
     <Card
-      style={{ maxWidth: SESSION_CARD_MAX_WIDTH }}
+      style={{
+        maxWidth: SESSION_CARD_MAX_WIDTH,
+        ...(isPinned && zoneColor ? { borderColor: zoneColor, borderWidth: 2 } : {}),
+      }}
       styles={{
         body: { padding: 16 },
       }}
@@ -131,10 +142,7 @@ const SessionCard = ({
         }}
       >
         <Space size={8} align="center">
-          <div
-            className="drag-handle"
-            style={{ cursor: 'grab', display: 'flex', alignItems: 'center' }}
-          >
+          <div className="drag-handle" style={{ display: 'flex', alignItems: 'center' }}>
             <ToolIcon tool={session.agent} size={32} />
           </div>
           <Text strong className="nodrag">
@@ -167,15 +175,29 @@ const SessionCard = ({
                 SPAWN
               </Tag>
             )}
+            {isPinned && zoneName && (
+              <Tag
+                icon={<PushpinFilled />}
+                color="blue"
+                onClick={e => {
+                  e.stopPropagation();
+                  onUnpin?.(session.session_id);
+                }}
+                title={`Pinned to ${zoneName} (click to unpin)`}
+              >
+                {zoneName}
+              </Tag>
+            )}
           </div>
-          <Button
-            type="text"
-            size="small"
-            icon={<DragOutlined />}
-            className="drag-handle"
-            title="Drag to reposition"
-            style={{ cursor: 'grab' }}
-          />
+          {!isPinned && (
+            <Button
+              type="text"
+              size="small"
+              icon={<DragOutlined />}
+              className="drag-handle"
+              title="Drag to reposition"
+            />
+          )}
           <div className="nodrag">
             {onSessionClick && (
               <Button
