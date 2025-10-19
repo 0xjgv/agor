@@ -3,6 +3,14 @@
  */
 
 /**
+ * Type for user-provided JSON data where structure is unknown or dynamic
+ *
+ * Use this instead of `any` when dealing with user input or dynamic data structures.
+ */
+// biome-ignore lint/suspicious/noExplicitAny: Escape hatch for user-provided JSON data
+export type UnknownJson = any;
+
+/**
  * Active CLI context (stateful)
  *
  * Values that change frequently during CLI usage.

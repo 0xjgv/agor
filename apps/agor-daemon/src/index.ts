@@ -8,7 +8,7 @@
 import 'dotenv/config';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadConfig } from '@agor/core/config';
+import { loadConfig, type UnknownJson } from '@agor/core/config';
 import {
   createDatabase,
   MCPServerRepository,
@@ -320,8 +320,7 @@ async function main() {
           // Handle atomic board object operations via _action parameter
           const contextData = context.data || {};
           const { _action, objectId, objectData, objects, deleteAssociatedSessions } =
-            // biome-ignore lint/suspicious/noExplicitAny: Data type varies by action (_action field determines structure)
-            contextData as any;
+            contextData as UnknownJson;
 
           if (_action === 'upsertObject') {
             if (!objectId || !objectData) {

@@ -8,7 +8,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import yaml from 'js-yaml';
-import type { AgorConfig, AgorContext, ContextKey } from './types';
+import type { AgorConfig, AgorContext, ContextKey, UnknownJson } from './types';
 
 /**
  * Get Agor home directory (~/.agor)
@@ -202,8 +202,7 @@ export async function getConfigValue(key: string): Promise<string | boolean | nu
 
   const parts = key.split('.');
 
-  // biome-ignore lint/suspicious/noExplicitAny: Dynamic config access
-  let value: any = merged;
+  let value: UnknownJson = merged;
   for (const part of parts) {
     if (value && typeof value === 'object' && part in value) {
       value = value[part];
@@ -230,23 +229,19 @@ export async function setConfigValue(key: string, value: string | boolean | numb
     if (!config.context) {
       config.context = {};
     }
-    // biome-ignore lint/suspicious/noExplicitAny: Dynamic config access
-    (config.context as any)[parts[0]] = value;
+    (config.context as UnknownJson)[parts[0]] = value;
   } else {
     // Nested key (e.g., "credentials.ANTHROPIC_API_KEY")
     const section = parts[0];
     const _subKey = parts.slice(1).join('.');
 
-    // biome-ignore lint/suspicious/noExplicitAny: Dynamic config access
-    if (!(config as any)[section]) {
-      // biome-ignore lint/suspicious/noExplicitAny: Dynamic config access
-      (config as any)[section] = {};
+    if (!(config as UnknownJson)[section]) {
+      (config as UnknownJson)[section] = {};
     }
 
     // For now, only support one level of nesting
     if (parts.length === 2) {
-      // biome-ignore lint/suspicious/noExplicitAny: Dynamic config access
-      (config as any)[section][parts[1]] = value;
+      (config as UnknownJson)[section][parts[1]] = value;
     } else {
       throw new Error(`Nested keys beyond one level not supported: ${key}`);
     }
@@ -267,17 +262,14 @@ export async function unsetConfigValue(key: string): Promise<void> {
   if (parts.length === 1) {
     // Top-level key (context key)
     if (config.context && parts[0] in config.context) {
-      // biome-ignore lint/suspicious/noExplicitAny: Dynamic config access
-      delete (config.context as any)[parts[0]];
+      delete (config.context as UnknownJson)[parts[0]];
     }
   } else if (parts.length === 2) {
     const section = parts[0];
     const subKey = parts[1];
 
-    // biome-ignore lint/suspicious/noExplicitAny: Dynamic config access
-    if ((config as any)[section] && subKey in (config as any)[section]) {
-      // biome-ignore lint/suspicious/noExplicitAny: Dynamic config access
-      delete (config as any)[section][subKey];
+    if ((config as UnknownJson)[section] && subKey in (config as UnknownJson)[section]) {
+      delete (config as UnknownJson)[section][subKey];
     }
   }
 
