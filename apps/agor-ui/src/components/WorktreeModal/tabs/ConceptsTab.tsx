@@ -1,8 +1,10 @@
 import type { Application } from '@agor/core/feathers';
-import type { Worktree } from '@agor/core/types';
-import { FileMarkdownOutlined, FolderOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import { Alert, Button, Empty, List, Space, Typography } from 'antd';
-import { useState } from 'react';
+import type { ContextFileDetail, ContextFileListItem, Worktree } from '@agor/core/types';
+import { InfoCircleOutlined } from '@ant-design/icons';
+import { Alert, Space, Typography } from 'antd';
+import { useEffect, useState } from 'react';
+import { MarkdownFileCollection } from '../../MarkdownFileCollection/MarkdownFileCollection';
+import { MarkdownModal } from '../../MarkdownModal/MarkdownModal';
 
 const { Text } = Typography;
 
@@ -11,46 +13,85 @@ interface ConceptsTabProps {
   client: Application | null;
 }
 
-interface ConceptFile {
-  path: string;
-  title?: string;
-  updated_at: string;
-  size: number;
-}
-
 export const ConceptsTab: React.FC<ConceptsTabProps> = ({ worktree, client }) => {
-  // TODO: Fetch concept files from backend service
-  // const [files, setFiles] = useState<ConceptFile[]>([]);
-  // const [loading, setLoading] = useState(false);
+  const [files, setFiles] = useState<ContextFileListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Placeholder data structure
-  const [files] = useState<ConceptFile[]>([]);
+  // Modal state
+  const [selectedFile, setSelectedFile] = useState<ContextFileDetail | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
-  const handleViewFile = (filePath: string) => {
-    console.log('View file:', filePath);
-    // TODO: Open MarkdownModal with file content
+  // Fetch concept files when tab is opened
+  useEffect(() => {
+    if (!client) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchFiles = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const result = await client.service('context').find({
+          query: { worktree_id: worktree.worktree_id },
+        });
+        const data = Array.isArray(result) ? result : result.data;
+
+        setFiles(data);
+      } catch (err) {
+        console.error('Failed to fetch concept files:', err);
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFiles();
+  }, [client, worktree.worktree_id]);
+
+  // Handle file click - fetch full content
+  const handleFileClick = async (file: ContextFileListItem) => {
+    if (!client) return;
+
+    try {
+      setLoadingDetail(true);
+      setModalOpen(true);
+
+      // Fetch full file detail with content
+      const detail = await client.service('context').get(file.path, {
+        query: { worktree_id: worktree.worktree_id },
+      });
+
+      setSelectedFile(detail);
+    } catch (err) {
+      console.error('Failed to fetch file detail:', err);
+      setError(err instanceof Error ? err.message : String(err));
+      setModalOpen(false);
+    } finally {
+      setLoadingDetail(false);
+    }
   };
 
-  const handleEditFile = (filePath: string) => {
-    console.log('Edit file:', filePath);
-    // TODO: Phase 4 - Open markdown editor
+  // Handle modal close
+  const handleModalClose = () => {
+    setModalOpen(false);
+    setSelectedFile(null);
   };
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%', padding: '0 24px' }}>
       <Alert
-        message="Concept Files (Phase 1 - In Progress)"
+        message="Concept Files"
         description={
           <Space direction="vertical" size="small">
-            <Text>
-              This feature will list all markdown files (CLAUDE.md, context/*.md, docs/*.md) from
-              the worktree path.
-            </Text>
+            <Text>Markdown files from the context/ directory in this worktree</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              Backend service (WorktreeConceptsService) needs to be implemented to scan the worktree
-              directory:{' '}
+              Worktree path:{' '}
               <Text code style={{ fontSize: 11 }}>
-                {worktree.path}
+                {worktree.path}/context
               </Text>
             </Text>
           </Space>
@@ -60,86 +101,25 @@ export const ConceptsTab: React.FC<ConceptsTabProps> = ({ worktree, client }) =>
         showIcon
       />
 
-      {files.length === 0 ? (
-        <Empty
-          image={<FileMarkdownOutlined style={{ fontSize: 64, color: '#d9d9d9' }} />}
-          description={
-            <Space direction="vertical" size="small">
-              <Text>No concept files found (or service not yet implemented)</Text>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Concept files will be automatically discovered from:
-              </Text>
-              <Space direction="vertical" size={0} style={{ fontSize: 11 }}>
-                <Text code>CLAUDE.md</Text>
-                <Text code>{'context/**/*.md'}</Text>
-                <Text code>{'docs/**/*.md'}</Text>
-                <Text code>{'.github/**/*.md'}</Text>
-              </Space>
-            </Space>
-          }
+      {error && <Alert message="Error" description={error} type="error" showIcon />}
+
+      <MarkdownFileCollection
+        files={files}
+        loading={loading}
+        onFileClick={handleFileClick}
+        emptyMessage="No concept files found in context/ directory"
+      />
+
+      {selectedFile && (
+        <MarkdownModal
+          open={modalOpen}
+          title={selectedFile.title}
+          content={selectedFile.content}
+          filePath={selectedFile.path.replace(/^context\//, '')}
+          onClose={handleModalClose}
         />
-      ) : (
-        <div>
-          <Text strong style={{ fontSize: 14, display: 'block', marginBottom: 8 }}>
-            Context files in this worktree:
-          </Text>
-          <List
-            size="small"
-            bordered
-            dataSource={files}
-            renderItem={file => (
-              <List.Item
-                actions={[
-                  <Button
-                    key="view"
-                    type="link"
-                    size="small"
-                    onClick={() => handleViewFile(file.path)}
-                  >
-                    View
-                  </Button>,
-                  <Button
-                    key="edit"
-                    type="link"
-                    size="small"
-                    onClick={() => handleEditFile(file.path)}
-                  >
-                    Edit
-                  </Button>,
-                ]}
-              >
-                <List.Item.Meta
-                  avatar={
-                    file.path.includes('/') ? (
-                      <FolderOutlined style={{ fontSize: 16 }} />
-                    ) : (
-                      <FileMarkdownOutlined style={{ fontSize: 16 }} />
-                    )
-                  }
-                  title={
-                    <Text code style={{ fontSize: 12 }}>
-                      {file.path}
-                    </Text>
-                  }
-                  description={
-                    <Space size="small">
-                      {file.title && <Text style={{ fontSize: 11 }}>{file.title}</Text>}
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        Updated {new Date(file.updated_at).toLocaleDateString()}
-                      </Text>
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        {Math.round(file.size / 1024)} KB
-                      </Text>
-                    </Space>
-                  }
-                />
-              </List.Item>
-            )}
-          />
-        </div>
       )}
 
-      {/* TODO: Phase 1 - Implement backend service to fetch files */}
       {/* TODO: Phase 4 - Add "Create New Concept File" button */}
       {/* TODO: Phase 4 - Implement markdown editor for editing files */}
     </Space>

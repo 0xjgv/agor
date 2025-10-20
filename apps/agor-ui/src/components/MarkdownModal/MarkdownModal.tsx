@@ -49,12 +49,7 @@ export const MarkdownModal: React.FC<MarkdownModalProps> = ({
 
   return (
     <Modal
-      title={
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>{title}</div>
-          <Breadcrumb items={breadcrumbItems} style={{ fontSize: 12 }} />
-        </div>
-      }
+      title={title}
       open={open}
       onCancel={onClose}
       footer={null}

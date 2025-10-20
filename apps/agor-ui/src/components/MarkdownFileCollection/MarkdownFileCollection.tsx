@@ -62,7 +62,9 @@ function buildTree(files: ConceptListItem[], searchQuery: string): TreeNode[] {
   const tree: Map<string, TreeNode> = new Map();
 
   for (const file of filteredFiles) {
-    const parts = file.path.split('/');
+    // Strip "context/" prefix from path for display
+    const displayPath = file.path.replace(/^context\//, '');
+    const parts = displayPath.split('/');
 
     // Build directory structure
     let currentPath = '';
@@ -97,7 +99,7 @@ function buildTree(files: ConceptListItem[], searchQuery: string): TreeNode[] {
         <span>
           <Text strong>{file.title}</Text>
           <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
-            ({file.path})
+            ({displayPath})
           </Text>
         </span>
       ),
