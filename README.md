@@ -26,7 +26,7 @@ Agor turns every AI session into a composable, inspectable, and reusable buildin
 - ✅ Docker-in-Docker for environment management
 - ✅ Port-forwarded URLs (private or public)
 - ✅ Full multiplayer support
-- ✅ Pre-installed AI agent CLIs (Claude Code, Gemini)
+- ✅ Pre-installed AI agent CLIs (Claude Code, Codex, Gemini)
 
 **⚠️ Sandbox Mode:**
 

@@ -7,10 +7,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install pnpm and AI coding agent CLIs (matches Dockerfile.dev)
-RUN npm install -g pnpm@9.15.1 @anthropic-ai/claude-code @google/gemini-cli
+RUN npm install -g pnpm@9.15.1 @anthropic-ai/claude-code @google/gemini-cli @openai/codex
 
 # Set working directory
 WORKDIR /workspace
 
-# Switch to non-root user (required for Codespaces)
-USER node
+# Note: USER node is set automatically by devcontainer after features are installed
+# Do NOT set USER here - Docker-in-Docker feature needs root access

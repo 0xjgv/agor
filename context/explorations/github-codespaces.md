@@ -51,7 +51,7 @@ Codespaces uses a **dedicated Dockerfile** (based on `Dockerfile.dev`) with addi
 1. **Base image:** `mcr.microsoft.com/devcontainers/typescript-node:20` (optimized for Codespaces)
 2. **Docker-in-Docker:** Installed via devcontainer feature (see devcontainer.json)
 3. **Non-root user:** Uses `node` user (Codespaces default) instead of `root`
-4. **AI CLI tools:** Same as dev - Claude Code, Gemini CLI
+4. **AI CLI tools:** Same as dev - Claude Code, Codex, Gemini CLI
 5. **System deps:** sqlite3, git (matches Dockerfile.dev)
 
 **Location:** `.devcontainer/Dockerfile`
@@ -66,7 +66,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install pnpm and AI coding agent CLIs (matches Dockerfile.dev)
-RUN npm install -g pnpm@9.15.1 @anthropic-ai/claude-code @google/gemini-cli
+RUN npm install -g pnpm@9.15.1 @anthropic-ai/claude-code @google/gemini-cli @openai/codex
 
 # Set working directory
 WORKDIR /workspace
@@ -412,6 +412,19 @@ claude --version
 - Agor's Claude Agent SDK uses this CLI under the hood
 - Sessions with `agentic_tool: "claude-code"` will spawn `claude` processes
 - Worktree isolation ensures each session has correct working directory
+
+### Codex CLI
+
+```bash
+codex --version
+# Requires: OPENAI_API_KEY environment variable
+```
+
+**Usage in Agor:**
+
+- Agor's Codex Agent SDK uses this CLI under the hood
+- Sessions with `agentic_tool: "codex"` will spawn `codex` processes
+- Supports permission modes (trusted, on-request, on-failure, never)
 
 ### Gemini CLI
 
