@@ -15,7 +15,7 @@ if [ ! -d ~/.agor ]; then
   echo ""
 
   # Run agor init with --force to skip prompts (anonymous mode, no auth)
-  cd /workspace/apps/agor-cli
+  cd /workspaces/agor/apps/agor-cli
   pnpm exec tsx bin/dev.ts init --force
 
   echo ""
@@ -29,7 +29,7 @@ if [ ! -d ~/.agor ]; then
 fi
 
 # Start daemon in background
-cd /workspace/apps/agor-daemon
+cd /workspaces/agor/apps/agor-daemon
 echo "🔧 Starting daemon on :3030..."
 pnpm dev > /tmp/agor-daemon.log 2>&1 &
 DAEMON_PID=$!
@@ -53,7 +53,7 @@ for i in {1..30}; do
 done
 
 # Start UI in background
-cd /workspace/apps/agor-ui
+cd /workspaces/agor/apps/agor-ui
 echo "🎨 Starting UI on :5173..."
 pnpm dev > /tmp/agor-ui.log 2>&1 &
 UI_PID=$!
