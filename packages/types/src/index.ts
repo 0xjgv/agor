@@ -1,6 +1,5 @@
 // src/types/index.ts
 
-export * from './agent';
 export * from './board';
 export * from './concept';
 export * from './id';
