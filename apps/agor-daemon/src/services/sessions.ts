@@ -56,7 +56,7 @@ export class SessionsService extends DrizzleService<Session, Partial<Session>, S
         status: 'idle',
         title: data.prompt.substring(0, 100), // First 100 chars as title
         description: data.prompt,
-        repo: parent.repo,
+        worktree_id: parent.worktree_id,
         git_state: { ...parent.git_state },
         genealogy: {
           forked_from_session_id: parent.session_id,
@@ -107,7 +107,7 @@ export class SessionsService extends DrizzleService<Session, Partial<Session>, S
         status: 'idle',
         title: data.prompt.substring(0, 100), // First 100 chars as title
         description: data.prompt,
-        repo: parent.repo,
+        worktree_id: parent.worktree_id,
         git_state: { ...parent.git_state },
         genealogy: {
           parent_session_id: parent.session_id,

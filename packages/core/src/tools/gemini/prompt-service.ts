@@ -256,7 +256,25 @@ export class GeminiPromptService {
               // Error occurred during execution
               const errorValue = 'value' in event ? event.value : 'Unknown error';
               console.error(`Gemini SDK error: ${JSON.stringify(errorValue)}`);
-              throw new Error(`Gemini execution failed: ${errorValue}`);
+
+              // Extract meaningful error message
+              let errorMessage = 'Unknown error';
+              if (typeof errorValue === 'object' && errorValue !== null) {
+                if (
+                  'error' in errorValue &&
+                  typeof errorValue.error === 'object' &&
+                  errorValue.error !== null
+                ) {
+                  const errorObj = errorValue.error as { message?: string };
+                  errorMessage = errorObj.message || JSON.stringify(errorValue);
+                } else {
+                  errorMessage = JSON.stringify(errorValue);
+                }
+              } else if (typeof errorValue === 'string') {
+                errorMessage = errorValue;
+              }
+
+              throw new Error(`Gemini execution failed: ${errorMessage}`);
             }
 
             case GeminiEventType.Thought: {

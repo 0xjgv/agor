@@ -274,20 +274,6 @@ const SessionCard = ({
           </Space>
         </div>
 
-        {/* Repo/Worktree */}
-        {session.repo && (
-          <div style={{ marginBottom: 8 }}>
-            <Text type="secondary">
-              📂{' '}
-              {session.repo.repo_slug
-                ? session.repo.worktree_name
-                  ? `${session.repo.repo_slug}:${session.repo.worktree_name}`
-                  : session.repo.repo_slug
-                : session.repo.cwd}
-            </Text>
-          </div>
-        )}
-
         {/* Concepts */}
         {session.concepts && session.concepts.length > 0 && (
           <div style={{ marginBottom: 12 }}>

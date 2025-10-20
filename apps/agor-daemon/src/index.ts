@@ -749,7 +749,16 @@ async function main() {
 
       // Get current git state from session's working directory
       const { getGitState } = await import('@agor/core/git');
-      const gitStateAtStart = session.repo?.cwd ? await getGitState(session.repo.cwd) : 'unknown';
+      let gitStateAtStart = 'unknown';
+      if (session.worktree_id) {
+        try {
+          const worktreesService = app.service('worktrees');
+          const worktree = await worktreesService.get(session.worktree_id, params);
+          gitStateAtStart = await getGitState(worktree.path);
+        } catch (error) {
+          console.warn(`Failed to get git state for worktree ${session.worktree_id}:`, error);
+        }
+      }
 
       // PHASE 1: Create task immediately with 'running' status (UI shows task instantly)
       const task = await tasksService.create(

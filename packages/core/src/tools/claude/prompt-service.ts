@@ -232,12 +232,11 @@ export class ClaudePromptService {
         console.error('PreToolUse hook error:', error);
 
         try {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          const timestamp = new Date().toISOString();
           await this.tasksService.patch(taskId, {
             status: TaskStatus.FAILED,
-            report: {
-              error: error instanceof Error ? error.message : String(error),
-              timestamp: new Date().toISOString(),
-            },
+            report: `Error: ${errorMessage}\nTimestamp: ${timestamp}`,
           });
         } catch (updateError) {
           console.error('Failed to update task status:', updateError);

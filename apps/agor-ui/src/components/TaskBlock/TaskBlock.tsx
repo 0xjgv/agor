@@ -201,7 +201,11 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({
               gap: token.sizeUnit / 2,
             }}
           >
-            <Text strong>{task.description || 'User Prompt'}</Text>
+            <Text strong>
+              {typeof task.description === 'string'
+                ? task.description || 'User Prompt'
+                : 'User Prompt'}
+            </Text>
           </div>
 
           {/* Task metadata */}
@@ -357,7 +361,9 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({
                     <GithubOutlined /> Commit:{' '}
                   </Text>
                   <Text code style={{ fontSize: 11 }}>
-                    {task.git_state.commit_message}
+                    {typeof task.git_state.commit_message === 'string'
+                      ? task.git_state.commit_message
+                      : JSON.stringify(task.git_state.commit_message)}
                   </Text>
                 </div>
               )}
@@ -379,7 +385,9 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({
                       whiteSpace: 'pre-wrap',
                     }}
                   >
-                    {task.report}
+                    {typeof task.report === 'string'
+                      ? task.report
+                      : JSON.stringify(task.report, null, 2)}
                   </Paragraph>
                 </div>
               )}

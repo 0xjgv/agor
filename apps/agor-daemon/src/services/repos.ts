@@ -6,10 +6,10 @@
  */
 
 import { type Database, RepoRepository } from '@agor/core/db';
+import { autoAssignWorktreeUniqueId } from '@agor/core/environment/variable-resolver';
 import type { Application } from '@agor/core/feathers';
 import { cloneRepo, getWorktreePath, createWorktree as gitCreateWorktree } from '@agor/core/git';
 import type { QueryParams, Repo, Worktree } from '@agor/core/types';
-import { autoAssignWorktreeUniqueId } from '@agor/core/environment/variable-resolver';
 import { DrizzleService } from '../adapters/drizzle';
 
 /**
@@ -49,58 +49,6 @@ export class ReposService extends DrizzleService<Repo, Partial<Repo>, RepoParams
   }
 
   /**
-   * Custom method: Add worktree to repo
-   */
-  async addWorktree(
-    id: string,
-    worktree: { name: string; path: string; branch?: string },
-    params?: RepoParams
-  ): Promise<Repo> {
-    const repo = await this.get(id, params);
-    const worktrees = repo.worktrees || [];
-
-    // Avoid duplicates
-    if (worktrees.some(wt => wt.name === worktree.name)) {
-      throw new Error(`Worktree '${worktree.name}' already exists`);
-    }
-
-    return this.patch(
-      id,
-      {
-        worktrees: [
-          ...worktrees,
-          {
-            name: worktree.name,
-            path: worktree.path,
-            ref: worktree.branch || 'main',
-            new_branch: false, // Will be updated by createWorktree if needed
-            sessions: [],
-            created_at: new Date().toISOString(),
-            last_used: new Date().toISOString(),
-          },
-        ],
-      },
-      params
-    ) as Promise<Repo>;
-  }
-
-  /**
-   * Custom method: Remove worktree from repo
-   */
-  async removeWorktree(id: string, worktreeName: string, params?: RepoParams): Promise<Repo> {
-    const repo = await this.get(id, params);
-    const worktrees = repo.worktrees || [];
-
-    return this.patch(
-      id,
-      {
-        worktrees: worktrees.filter(wt => wt.name !== worktreeName),
-      },
-      params
-    ) as Promise<Repo>;
-  }
-
-  /**
    * Custom method: Clone repository
    */
   async cloneRepository(data: { url: string; slug: string }, params?: RepoParams): Promise<Repo> {
@@ -120,9 +68,7 @@ export class ReposService extends DrizzleService<Repo, Partial<Repo>, RepoParams
         name: result.repoName,
         remote_url: data.url,
         local_path: result.path,
-        managed_by_agor: true,
         default_branch: result.defaultBranch,
-        worktrees: [],
       },
       params
     ) as Promise<Repo>;
@@ -159,10 +105,10 @@ export class ReposService extends DrizzleService<Repo, Partial<Repo>, RepoParams
 
     // Get all existing worktrees to auto-assign unique ID
     const worktreesService = this.app.service('worktrees');
-    const existingWorktrees = await worktreesService.find({
+    const existingWorktrees = (await worktreesService.find({
       query: { $limit: 1000 },
       paginate: false,
-    }) as unknown as Worktree[];
+    })) as unknown as Worktree[];
 
     const worktreeUniqueId = autoAssignWorktreeUniqueId(existingWorktrees);
 

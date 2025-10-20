@@ -119,9 +119,16 @@ const SessionHeader = ({
       {(session.title || session.description) && (
         <Text
           style={{ fontSize: 14, fontWeight: 500 }}
-          ellipsis={{ tooltip: session.title || session.description }}
+          ellipsis={{
+            tooltip:
+              typeof (session.title || session.description) === 'string'
+                ? session.title || session.description
+                : undefined,
+          }}
         >
-          {session.title || session.description}
+          {typeof (session.title || session.description) === 'string'
+            ? session.title || session.description
+            : String(session.title || session.description)}
         </Text>
       )}
 

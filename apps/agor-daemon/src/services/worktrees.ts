@@ -40,22 +40,28 @@ export class WorktreesService extends DrizzleService<Worktree, Partial<Worktree>
   /**
    * Override find to support repo_id filter
    */
-  async _find(params?: WorktreeParams) {
+  async find(params?: WorktreeParams) {
     const { repo_id } = params?.query || {};
 
     // If repo_id filter is provided, use repository method
     if (repo_id) {
       const worktrees = await this.worktreeRepo.findAll({ repo_id });
-      return {
-        total: worktrees.length,
-        limit: params?.query?.$limit || 50,
-        skip: params?.query?.$skip || 0,
-        data: worktrees,
-      };
+
+      // Return with pagination if enabled
+      if (this.paginate) {
+        return {
+          total: worktrees.length,
+          limit: params?.query?.$limit || this.paginate.default || 50,
+          skip: params?.query?.$skip || 0,
+          data: worktrees,
+        };
+      }
+
+      return worktrees;
     }
 
     // Otherwise, use default find
-    return super._find(params);
+    return super.find(params);
   }
 
   /**
@@ -76,7 +82,7 @@ export class WorktreesService extends DrizzleService<Worktree, Partial<Worktree>
     const worktree = await this.worktreeRepo.addSession(id, sessionId);
 
     // Emit WebSocket event
-    this.emit('patched', worktree, params);
+    this.emit?.('patched', worktree, params);
 
     return worktree;
   }
@@ -88,7 +94,7 @@ export class WorktreesService extends DrizzleService<Worktree, Partial<Worktree>
     const worktree = await this.worktreeRepo.removeSession(id, sessionId);
 
     // Emit WebSocket event
-    this.emit('patched', worktree, params);
+    this.emit?.('patched', worktree, params);
 
     return worktree;
   }
@@ -106,7 +112,7 @@ export class WorktreesService extends DrizzleService<Worktree, Partial<Worktree>
     const updatedEnvironment = {
       ...existing.environment_instance,
       ...environmentUpdate,
-    };
+    } as Worktree['environment_instance'];
 
     const worktree = await this.patch(
       id,

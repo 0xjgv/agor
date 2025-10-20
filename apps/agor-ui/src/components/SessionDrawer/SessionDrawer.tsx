@@ -229,7 +229,9 @@ const SessionDrawer = ({
             {session.description && session.description !== session.title && (
               <div style={{ marginBottom: 4 }}>
                 <Text type="secondary" style={{ fontSize: 13 }}>
-                  {session.description}
+                  {typeof session.description === 'string'
+                    ? session.description
+                    : JSON.stringify(session.description)}
                 </Text>
               </div>
             )}
@@ -304,7 +306,9 @@ const SessionDrawer = ({
                   <RepoPill
                     repoName={repo.slug}
                     worktreeName={worktree.name}
-                    onClick={onOpenWorktree ? () => onOpenWorktree(worktree.worktree_id) : undefined}
+                    onClick={
+                      onOpenWorktree ? () => onOpenWorktree(worktree.worktree_id) : undefined
+                    }
                   />
                 )}
                 <BranchPill branch={session.git_state.ref} />
