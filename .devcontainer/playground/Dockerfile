@@ -16,7 +16,8 @@ WORKDIR /build
 COPY . .
 
 # Install dependencies and build
-RUN pnpm install --frozen-lockfile && pnpm -r build
+# Note: Not using --frozen-lockfile to allow flexibility in sandbox environment
+RUN pnpm install && pnpm -r build
 
 # Production stage
 FROM mcr.microsoft.com/devcontainers/typescript-node:20
