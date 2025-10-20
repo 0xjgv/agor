@@ -1,8 +1,8 @@
 # Worktree-Centric Architecture: PRD
 
-**Status:** 🚧 In Progress (Phase 0 Complete, Phase 1 Started)
+**Status:** 🚧 In Progress (Phase 0 Complete, Phase 1 Basic CRUD Complete)
 **Created:** 2025-01-19
-**Last Updated:** 2025-01-19
+**Last Updated:** 2025-01-20
 **Author:** Claude Code (with Max)
 **Epic:** Worktree-First Design + Data Model Normalization
 
@@ -13,17 +13,22 @@
 **Phase 0 (Data Model):** ✅ **COMPLETE**
 
 - ✅ Worktrees table created with full schema
-- ✅ Sessions reference worktrees via FK
+- ✅ Sessions reference worktrees via FK (NOT NULL constraint)
 - ✅ WorktreesService (REST + WebSocket) operational
 - ✅ UI updated (separate Repositories and Worktrees tabs)
+- ✅ Git operations fully working (bare repos, SSH auth)
+- ✅ Docker environment with SSH key mounting
 
-**Phase 1 (Worktree Modal UI):** 🚧 **IN PROGRESS**
+**Phase 1 (Worktree CRUD):** ✅ **BASIC CRUD COMPLETE**
 
-- ✅ Settings → Worktrees tab with table view
-- ⏳ WorktreeModal component (5 tabs)
-- ⏳ Parent component integration
+- ✅ Settings → Worktrees tab with full table view
+- ✅ Create Worktree modal (session-inspired UX)
+- ✅ Real-time WebSocket updates (no refresh needed)
+- ✅ Delete functionality with session warnings
+- ✅ Git worktree creation with branch management
+- ⏳ WorktreeModal component (5 tabs) - NOT YET STARTED
 
-**Next Up:** Complete Phase 1, then Environment Execution (Phase 2)
+**Next Up:** WorktreeModal (5 tabs), then Environment Execution (Phase 2)
 
 ---
 
@@ -1039,11 +1044,11 @@ export function TerminalModal({ worktreeId, onClose }) {
 
 ---
 
-### Phase 1: Worktree Modal UI (~1 week) 🚧 **IN PROGRESS**
+### Phase 1: Worktree CRUD & Modal UI (~1 week) ✅ **BASIC CRUD COMPLETE**
 
-**Goal:** Build worktree-centric UI (no environment execution yet)
+**Goal:** Build worktree-centric UI with full CRUD operations
 
-**Status:** 🚧 Partially Complete
+**Status:** ✅ Basic CRUD Complete | ⏳ Modal UI Not Started
 
 **Completed Tasks:**
 
@@ -1052,34 +1057,62 @@ export function TerminalModal({ worktreeId, onClose }) {
    - Delete functionality with session count warning
    - Empty states for no repos and no worktrees
 
+2. ✅ **Create Worktree functionality**
+   - "+ Create Worktree" button with modal
+   - Repository selection dropdown
+   - Worktree name input (URL-friendly validation)
+   - Checkbox to use worktree name as branch name
+   - Default to repo's default_branch for base branch
+   - Clear explanation of what will happen (fetch latest, create branch)
+
+3. ✅ **Real-time updates**
+   - WebSocket broadcasting via WorktreesService
+   - UI updates immediately without refresh
+   - Proper service dependency injection (app.service())
+
+4. ✅ **Git operations**
+   - Bare repository cloning (--bare flag)
+   - SSH host key checking disabled globally
+   - git fetch origin before creating worktrees
+   - Proper worktree path structure: ~/.agor/worktrees/<repo-slug>/<worktree-name>
+   - Branch creation from bare repos (use branch name, not origin/branch)
+
+5. ✅ **Docker environment**
+   - SSH key mounting (~/.ssh:/root/.ssh:ro)
+   - Git authentication working in container
+   - Documentation in DOCKER.md
+
+6. ✅ **Backend services**
+   - WorktreesService fully operational
+   - ReposService.createWorktree uses WorktreesService
+   - WebSocket events properly broadcast
+
 **Remaining Tasks:**
 
-2. ⏳ **Create WorktreeModal component**
+7. ⏳ **Create WorktreeModal component**
    - General tab (metadata, issue/PR, notes, sessions)
    - Environment tab (show config read-only, edit variables)
    - Concepts tab (list markdown files)
    - Sessions tab (list active/past sessions)
    - Repo tab (link to repo settings)
 
-3. ⏳ **Update WorktreesTable**
+8. ⏳ **Update WorktreesTable**
    - Click row → Open WorktreeModal
-   - "+ Create Worktree" button → CreateWorktreeModal
 
-4. ⏳ **Update SessionHeader**
+9. ⏳ **Update SessionHeader**
    - Make "Worktree: feat-auth" clickable → Opens WorktreeModal
 
-5. ⏳ **Backend services**
-   - WorktreeConceptsService (list markdown files from worktree path)
-   - Worktrees already support: issue_url, pr_url, notes, environment_instance
-
-6. ⏳ **Wire up parent component**
-   - Fetch worktrees from `/worktrees` service
-   - Pass to SettingsModal
-   - Implement delete handler
+10. ⏳ **Backend services**
+    - WorktreeConceptsService (list markdown files from worktree path)
+    - Worktrees already support: issue_url, pr_url, notes, environment_instance
 
 **Acceptance Criteria:**
 
 - ✅ Settings → Worktrees tab exists (table view)
+- ✅ Can create worktrees with real-time updates
+- ✅ Can delete worktrees with warnings
+- ✅ Git operations fully functional
+- ✅ Docker environment working
 - ⏳ Can open Worktree Modal from multiple places
 - ⏳ All 5 tabs render correctly
 - ⏳ Can edit issue_url, pr_url, notes
