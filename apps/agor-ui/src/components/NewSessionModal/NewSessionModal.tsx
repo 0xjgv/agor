@@ -1,7 +1,8 @@
+import type { AgenticTool, AgenticToolName, MCPServer, PermissionMode } from '@agor/core/types';
+import { getDefaultPermissionMode } from '@agor/core/types';
 import { DownOutlined, SettingOutlined } from '@ant-design/icons';
 import { Alert, Button, Collapse, Form, Input, Modal, Select, Space, Typography } from 'antd';
 import { useState } from 'react';
-import type { AgenticTool, AgenticToolName, MCPServer, PermissionMode } from '@agor/core/types';
 import { AgenticToolConfigForm } from '../AgenticToolConfigForm';
 import { AgentSelectionCard } from '../AgentSelectionCard';
 import type { ModelConfig } from '../ModelSelector';
@@ -138,6 +139,11 @@ export const NewSessionModal: React.FC<NewSessionModalProps> = ({
         style={{ marginTop: 16 }}
         onFieldsChange={handleFormChange}
         preserve={false}
+        initialValues={{
+          permissionMode: getDefaultPermissionMode(
+            (selectedAgent as AgenticToolName) || 'claude-code'
+          ),
+        }}
       >
         <Form.Item label="Select Coding Agent" required>
           <Space direction="vertical" style={{ width: '100%' }} size="small">

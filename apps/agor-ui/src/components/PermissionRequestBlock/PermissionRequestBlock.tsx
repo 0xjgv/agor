@@ -8,18 +8,18 @@
  * - Visual indication that system is waiting
  */
 
-import { CheckOutlined, CloseOutlined, LockOutlined } from '@ant-design/icons';
-import { Button, Card, Descriptions, Radio, Space, Tag, Typography, theme } from 'antd';
-import type React from 'react';
-import { useState } from 'react';
 import {
   type Message,
   type PermissionRequestContent,
   PermissionScope,
   PermissionStatus,
 } from '@agor/core/types';
+import { CheckOutlined, CloseOutlined, LockOutlined } from '@ant-design/icons';
+import { Button, Card, Descriptions, Radio, Space, Tag, Typography, theme } from 'antd';
+import type React from 'react';
+import { useState } from 'react';
 
-const { Text, Title } = Typography;
+const { Text, Title, Paragraph } = Typography;
 
 interface PermissionRequestBlockProps {
   message: Message;
@@ -160,12 +160,20 @@ export const PermissionRequestBlock: React.FC<PermissionRequestBlockProps> = ({
                   </Text>
                 ),
                 children: (
-                  <Text
+                  <Paragraph
                     code
-                    style={{ fontSize: 12, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}
+                    style={{
+                      fontSize: 12,
+                      margin: 0,
+                      padding: token.sizeUnit,
+                      backgroundColor: token.colorBgContainer,
+                      borderRadius: token.borderRadius,
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                    }}
                   >
                     {typeof value === 'string' ? value : JSON.stringify(value, null, 2)}
-                  </Text>
+                  </Paragraph>
                 ),
               }))}
             />

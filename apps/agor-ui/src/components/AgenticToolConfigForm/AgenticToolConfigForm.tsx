@@ -9,9 +9,9 @@
  * Used in both NewSessionModal and SessionSettingsModal
  */
 
-import { Form } from 'antd';
 import type { AgenticToolName, MCPServer } from '@agor/core/types';
 import { getDefaultPermissionMode } from '@agor/core/types';
+import { Form } from 'antd';
 import { MCPServerSelect } from '../MCPServerSelect';
 import { ModelSelector } from '../ModelSelector';
 import { PermissionModeSelector } from '../PermissionModeSelector';
@@ -70,7 +70,6 @@ export const AgenticToolConfigForm: React.FC<AgenticToolConfigFormProps> = ({
         name="permissionMode"
         label="Permission Mode"
         help={showHelpText ? 'Control how the agent handles tool execution approvals' : undefined}
-        initialValue={getDefaultPermissionMode(agenticTool)}
       >
         <PermissionModeSelector agentic_tool={agenticTool} />
       </Form.Item>

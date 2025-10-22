@@ -47,10 +47,16 @@ export const AVAILABLE_CLAUDE_MODEL_ALIASES: ClaudeModel[] = [
     description: 'Fast & balanced',
   },
   {
+    id: 'claude-haiku-4-5',
+    displayName: 'Claude Haiku 4.5',
+    family: 'claude-4',
+    description: 'Fastest (latest)',
+  },
+  {
     id: 'claude-3-5-haiku-latest',
     displayName: 'Claude 3.5 Haiku',
     family: 'claude-3.5',
-    description: 'Fastest',
+    description: 'Fastest (previous)',
   },
 ];
 
