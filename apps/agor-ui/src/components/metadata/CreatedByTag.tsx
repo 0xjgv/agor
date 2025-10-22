@@ -1,5 +1,5 @@
-import { Tag } from 'antd';
 import type { User } from '@agor/core/types';
+import { Tag } from 'antd';
 import { UserAvatar } from './UserAvatar';
 
 export interface CreatedByTagProps {
@@ -33,14 +33,14 @@ export const CreatedByTag: React.FC<CreatedByTagProps> = ({
   if (!user || createdBy === 'anonymous') {
     return (
       <Tag color="default" style={{ fontSize: 11 }}>
-        {prefix}: {createdBy === 'anonymous' ? 'Anonymous' : 'Unknown User'}
+        {createdBy === 'anonymous' ? 'Anonymous' : 'Unknown User'}
       </Tag>
     );
   }
 
   return (
     <Tag color="blue" style={{ fontSize: 11 }}>
-      {prefix}: <UserAvatar user={user} showName={true} size="small" />
+      <UserAvatar user={user} showName={true} size="small" />
     </Tag>
   );
 };
