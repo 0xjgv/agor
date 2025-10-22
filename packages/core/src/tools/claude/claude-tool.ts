@@ -263,7 +263,7 @@ export class ClaudeTool implements ITool {
           currentMessageId &&
           streamingCallbacks &&
           'role' in event &&
-          event.role === 'assistant'
+          event.role === MessageRole.ASSISTANT
         ) {
           const streamEndTime = Date.now();
           streamingCallbacks.onStreamEnd(currentMessageId);
@@ -275,7 +275,7 @@ export class ClaudeTool implements ITool {
         }
 
         // Handle based on role
-        if ('role' in event && event.role === 'assistant') {
+        if ('role' in event && event.role === MessageRole.ASSISTANT) {
           // Use existing message ID or generate new one
           const assistantMessageId = currentMessageId || (generateId() as MessageID);
 
@@ -295,7 +295,7 @@ export class ClaudeTool implements ITool {
           currentMessageId = null;
           streamStartTime = Date.now();
           firstTokenTime = null;
-        } else if ('role' in event && event.role === 'user') {
+        } else if ('role' in event && event.role === MessageRole.USER) {
           // Create user message (tool results, etc.)
           const userMessageId = generateId() as MessageID;
           await this.createUserMessageFromContent(

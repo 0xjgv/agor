@@ -22,6 +22,19 @@ import type {
   SDKUserMessageReplay,
 } from '@anthropic-ai/claude-agent-sdk/sdkTypes';
 import type { SessionID } from '../../types';
+import { MessageRole } from '../../types';
+
+/**
+ * Content block interface for SDK messages
+ */
+interface ContentBlock {
+  type: string;
+  text?: string;
+  is_error?: boolean;
+  content?: unknown;
+  tool_use_id?: string;
+  [key: string]: unknown;
+}
 
 /**
  * Events yielded by the processor for upstream consumption
@@ -35,7 +48,7 @@ export type ProcessedEvent =
     }
   | {
       type: 'complete';
-      role: 'assistant' | 'user';
+      role: MessageRole.ASSISTANT | MessageRole.USER;
       content: Array<{
         type: string;
         text?: string;
@@ -231,7 +244,7 @@ export class SDKMessageProcessor {
     return [
       {
         type: 'complete',
-        role: 'assistant',
+        role: MessageRole.ASSISTANT,
         content: contentBlocks,
         toolUses: toolUses.length > 0 ? toolUses : undefined,
         agentSessionId: this.state.capturedAgentSessionId,
@@ -254,15 +267,18 @@ export class SDKMessageProcessor {
     const uuid = 'uuid' in msg ? msg.uuid : undefined;
 
     // Check what type of content this user message has
-    const hasToolResult = Array.isArray(content) && content.some((b: any) => b.type === 'tool_result');
-    const hasText = Array.isArray(content) && content.some((b: any) => b.type === 'text');
+    const hasToolResult =
+      Array.isArray(content) && content.some((b: ContentBlock) => b.type === 'tool_result');
+    const hasText = Array.isArray(content) && content.some((b: ContentBlock) => b.type === 'text');
 
     if (hasToolResult) {
       // Tool result messages - save to database for conversation continuity
-      const toolResults = content.filter((b: any) => b.type === 'tool_result');
-      console.log(`🔧 SDK user message with ${toolResults.length} tool result(s) (uuid: ${uuid?.substring(0, 8)})`);
+      const toolResults = content.filter((b: ContentBlock) => b.type === 'tool_result');
+      console.log(
+        `🔧 SDK user message with ${toolResults.length} tool result(s) (uuid: ${uuid?.substring(0, 8)})`
+      );
 
-      toolResults.forEach((tr: any, i: number) => {
+      toolResults.forEach((tr: ContentBlock, i: number) => {
         const preview =
           typeof tr.content === 'string'
             ? tr.content.substring(0, 100)
@@ -274,15 +290,15 @@ export class SDKMessageProcessor {
       return [
         {
           type: 'complete',
-          role: 'user',
-          content: content as any, // Tool result content
+          role: MessageRole.USER,
+          content: content as ContentBlock[], // Tool result content
           toolUses: undefined,
           agentSessionId: this.state.capturedAgentSessionId,
           resolvedModel: this.state.resolvedModel,
         },
       ];
     } else if (hasText) {
-      const textBlocks = content.filter((b: any) => b.type === 'text');
+      const textBlocks = content.filter((b: ContentBlock) => b.type === 'text');
       const textPreview = textBlocks[0]?.text?.substring(0, 100) || '';
       console.log(`👤 SDK user message (uuid: ${uuid?.substring(0, 8)}): "${textPreview}"`);
 
@@ -290,8 +306,8 @@ export class SDKMessageProcessor {
       return [
         {
           type: 'complete',
-          role: 'user',
-          content: content as any,
+          role: MessageRole.USER,
+          content: content as ContentBlock[],
           toolUses: undefined,
           agentSessionId: this.state.capturedAgentSessionId,
           resolvedModel: this.state.resolvedModel,
@@ -299,7 +315,10 @@ export class SDKMessageProcessor {
       ];
     } else {
       console.log(`👤 SDK user message (uuid: ${uuid?.substring(0, 8)})`);
-      console.log(`   Content types:`, content?.map((b: any) => b.type) || 'no content');
+      console.log(
+        `   Content types:`,
+        Array.isArray(content) ? content.map((b: ContentBlock) => b.type) : 'no content'
+      );
       return []; // Unknown user message type - log only
     }
   }
@@ -312,7 +331,7 @@ export class SDKMessageProcessor {
       return []; // Streaming disabled
     }
 
-    const event = msg.event as any;
+    const event = msg.event as { type?: string; [key: string]: unknown };
     const events: ProcessedEvent[] = [];
 
     // Message start event
@@ -396,7 +415,9 @@ export class SDKMessageProcessor {
       }
 
       // Remove from stack
-      this.state.contentBlockStack = this.state.contentBlockStack.filter(b => b.index !== blockIndex);
+      this.state.contentBlockStack = this.state.contentBlockStack.filter(
+        b => b.index !== blockIndex
+      );
     }
 
     // Message stop event
@@ -479,7 +500,7 @@ export class SDKMessageProcessor {
   /**
    * Handle unknown message types
    */
-  private handleUnknown(msg: any): ProcessedEvent[] {
+  private handleUnknown(msg: { type?: string; [key: string]: unknown }): ProcessedEvent[] {
     console.warn(`⚠️  Unknown SDK message type: ${msg.type}`, msg);
     return []; // Continue processing - don't fail on unknown types
   }
@@ -487,9 +508,7 @@ export class SDKMessageProcessor {
   /**
    * Process content blocks from SDK message
    */
-  private processContentBlocks(
-    content: any
-  ): Array<{
+  private processContentBlocks(content: ContentBlock[]): Array<{
     type: string;
     text?: string;
     id?: string;
@@ -500,7 +519,7 @@ export class SDKMessageProcessor {
       return [];
     }
 
-    return content.map((block: any) => {
+    return content.map((block: ContentBlock) => {
       if (block.type === 'text') {
         return {
           type: 'text',
@@ -526,7 +545,12 @@ export class SDKMessageProcessor {
    * Extract tool uses from content blocks
    */
   private extractToolUses(
-    contentBlocks: Array<{ type: string; id?: string; name?: string; input?: Record<string, unknown> }>
+    contentBlocks: Array<{
+      type: string;
+      id?: string;
+      name?: string;
+      input?: Record<string, unknown>;
+    }>
   ): Array<{ id: string; name: string; input: Record<string, unknown> }> {
     return contentBlocks
       .filter(block => block.type === 'tool_use' && block.id && block.name && block.input)

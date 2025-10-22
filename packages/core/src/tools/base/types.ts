@@ -5,7 +5,7 @@
  * Not to be confused with AI agents (internal personas)
  */
 
-import type { Message, MessageID, SessionID, TaskID } from '../../types';
+import type { Message, MessageID, MessageRole, SessionID, TaskID } from '../../types';
 
 /**
  * Supported tool types
@@ -39,7 +39,7 @@ export interface StreamingCallbacks {
     metadata: {
       session_id: SessionID;
       task_id?: TaskID;
-      role: 'assistant';
+      role: MessageRole.ASSISTANT;
       timestamp: string;
     }
   ): void;

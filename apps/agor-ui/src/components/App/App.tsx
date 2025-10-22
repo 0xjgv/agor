@@ -5,7 +5,6 @@ import type {
   CreateUserInput,
   MCPServer,
   PermissionMode,
-  PermissionScope,
   Repo,
   Session,
   Task,
@@ -13,6 +12,7 @@ import type {
   User,
   Worktree,
 } from '@agor/core/types';
+import { PermissionScope } from '@agor/core/types';
 import { Layout } from 'antd';
 import { useState } from 'react';
 import { usePresence } from '../../hooks/usePresence';

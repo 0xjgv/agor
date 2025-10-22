@@ -22,8 +22,8 @@ import type { WorktreeRepository } from '../../db/repositories/worktrees';
 import { generateId } from '../../lib/ids';
 import { validateDirectory } from '../../lib/validation';
 import type { PermissionService } from '../../permissions/permission-service';
-import type { MCPServersConfig, SessionID, TaskID } from '../../types';
-import { TaskStatus, PermissionStatus } from '../../types';
+import type { MCPServersConfig, Message, MessageID, SessionID, TaskID } from '../../types';
+import { MessageRole, PermissionStatus, TaskStatus } from '../../types';
 import type { SessionsService, TasksService } from './claude-tool';
 import { SDKMessageProcessor } from './message-processor';
 import { DEFAULT_CLAUDE_MODEL } from './models';
@@ -152,12 +152,12 @@ export class ClaudePromptService {
           index: nextIndex,
         });
 
-        const permissionMessage: import('@agor/core/types').Message = {
-          message_id: generateId() as import('@agor/core/types').MessageID,
+        const permissionMessage: Message = {
+          message_id: generateId() as MessageID,
           session_id: sessionId,
           task_id: taskId,
           type: 'permission_request',
-          role: 'system',
+          role: MessageRole.SYSTEM,
           index: nextIndex,
           timestamp,
           content_preview: `Permission required: ${input.tool_name}`,
@@ -219,7 +219,9 @@ export class ClaudePromptService {
               approved_at: new Date().toISOString(),
             },
           });
-          console.log(`✅ Permission request message updated: ${decision.allow ? 'approved' : 'denied'}`);
+          console.log(
+            `✅ Permission request message updated: ${decision.allow ? 'approved' : 'denied'}`
+          );
         }
 
         // Update task status
@@ -480,7 +482,9 @@ export class ClaudePromptService {
       const isRoot = process.getuid?.() === 0;
 
       if (isRoot && permissionMode === 'bypassPermissions') {
-        console.warn(`⚠️  Running as root - bypassPermissions not allowed. Falling back to 'default' mode.`);
+        console.warn(
+          `⚠️  Running as root - bypassPermissions not allowed. Falling back to 'default' mode.`
+        );
         console.warn(`   This is a security restriction from Claude Code SDK.`);
         options.permissionMode = 'default';
       } else {
@@ -499,15 +503,10 @@ export class ClaudePromptService {
 
     // Add PreToolUse hook if permission service is available and taskId provided
     // This enables Agor's custom permission UI (WebSocket-based) instead of CLI prompts
-    // IMPORTANT: Only add hook if using modes that support custom permission handling
+    // IMPORTANT: Only skip hook for bypassPermissions (which never asks for permissions)
     // Note: effectivePermissionMode is the ACTUAL mode after root fallback (options.permissionMode)
     const effectivePermissionMode = options.permissionMode;
-    if (
-      this.permissionService &&
-      taskId &&
-      effectivePermissionMode !== 'bypassPermissions' &&
-      effectivePermissionMode !== 'acceptEdits'
-    ) {
+    if (this.permissionService && taskId && effectivePermissionMode !== 'bypassPermissions') {
       options.hooks = {
         PreToolUse: [
           {
@@ -701,7 +700,7 @@ export class ClaudePromptService {
       )
     );
 
-    let result;
+    let result: AsyncGenerator<unknown>;
     try {
       result = query({
         prompt,
@@ -714,7 +713,9 @@ export class ClaudePromptService {
       console.error(`❌ CRITICAL: query() threw synchronous error (very unusual):`, syncError);
       console.error(`   Claude Code path: ${claudeCodePath}`);
       console.error(`   CWD: ${cwd}`);
-      console.error(`   API key set: ${this.apiKey ? 'YES (custom)' : process.env.ANTHROPIC_API_KEY ? 'YES (env)' : 'NO'}`);
+      console.error(
+        `   API key set: ${this.apiKey ? 'YES (custom)' : process.env.ANTHROPIC_API_KEY ? 'YES (env)' : 'NO'}`
+      );
       console.error(`   Resume session: ${options.resume || 'none (fresh session)'}`);
       throw syncError;
     }
@@ -772,7 +773,7 @@ export class ClaudePromptService {
       }
     | {
         type: 'complete';
-        role?: 'assistant' | 'user';
+        role?: MessageRole.ASSISTANT | MessageRole.USER;
         content: Array<{
           type: string;
           text?: string;
@@ -804,13 +805,11 @@ export class ClaudePromptService {
         agentSessionId?: string;
       }
   > {
-    const { query: result, resolvedModel, getStderr } = await this.setupQuery(
-      sessionId,
-      prompt,
-      taskId,
-      permissionMode,
-      true
-    );
+    const {
+      query: result,
+      resolvedModel,
+      getStderr,
+    } = await this.setupQuery(sessionId, prompt, taskId, permissionMode, true);
 
     // Get session for reference (needed to check existing sdk_session_id)
     const session = await this.sessionsRepo?.findById(sessionId);
@@ -841,7 +840,9 @@ export class ClaudePromptService {
           console.warn(
             `⏱️  No assistant messages for ${Math.round((Date.now() - state.lastAssistantMessageTime) / 1000)}s - assuming conversation complete`
           );
-          console.warn(`   SDK may not have sent 'result' message - breaking loop as safety measure`);
+          console.warn(
+            `   SDK may not have sent 'result' message - breaking loop as safety measure`
+          );
           break;
         }
 
@@ -890,9 +891,7 @@ export class ClaudePromptService {
 
       // Get actual error message from stderr if available
       const stderrOutput = getStderr();
-      const errorContext = stderrOutput
-        ? `\n\nClaude Code stderr output:\n${stderrOutput}`
-        : '';
+      const errorContext = stderrOutput ? `\n\nClaude Code stderr output:\n${stderrOutput}` : '';
 
       // Enhance error with context
       const enhancedError = new Error(
@@ -928,7 +927,13 @@ export class ClaudePromptService {
    * @returns Complete assistant response with metadata
    */
   async promptSession(sessionId: SessionID, prompt: string): Promise<PromptResult> {
-    const { query: result, getStderr } = await this.setupQuery(sessionId, prompt, undefined, undefined, false);
+    const { query: result, getStderr } = await this.setupQuery(
+      sessionId,
+      prompt,
+      undefined,
+      undefined,
+      false
+    );
 
     // Get session for reference
     const session = await this.sessionsRepo?.findById(sessionId);
@@ -960,7 +965,7 @@ export class ClaudePromptService {
 
       for (const event of events) {
         // Only collect complete assistant messages
-        if (event.type === 'complete' && event.role === 'assistant') {
+        if (event.type === 'complete' && event.role === MessageRole.ASSISTANT) {
           assistantMessages.push({
             content: event.content,
             toolUses: event.toolUses,
