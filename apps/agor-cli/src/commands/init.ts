@@ -288,6 +288,7 @@ export default class Init extends Command {
     // Prompt for auth/multiplayer setup (unless --force)
     if (!skipPrompts) {
       await this.promptAuthSetup(dbPath);
+      await this.promptApiKeys();
     }
 
     // Success summary
@@ -439,5 +440,129 @@ export default class Init extends Command {
       this.log(chalk.gray('You can create an admin user later with:'));
       this.log(chalk.gray('  agor user create-admin'));
     }
+  }
+
+  /**
+   * Prompt user for API key setup
+   */
+  private async promptApiKeys(): Promise<void> {
+    this.log('');
+    this.log(chalk.bold('🔑 API Key Setup'));
+    this.log('');
+    this.log(chalk.gray('Configure API keys for AI agents (optional, can be set later)'));
+    this.log('');
+
+    const { setupKeys } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'setupKeys',
+        message: 'Set up API keys now?',
+        default: false,
+      },
+    ]);
+
+    if (!setupKeys) {
+      this.log('');
+      this.log(chalk.gray('Skipped. You can set API keys later with:'));
+      this.log(chalk.gray('  agor config set credentials.ANTHROPIC_API_KEY "sk-ant-..."'));
+      this.log(chalk.gray('  agor config set credentials.OPENAI_API_KEY "sk-..."'));
+      this.log(chalk.gray('  agor config set credentials.GEMINI_API_KEY "..."'));
+      return;
+    }
+
+    // Anthropic API Key
+    const { setupAnthropic } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'setupAnthropic',
+        message: 'Set up Anthropic API key (for Claude Code)?',
+        default: true,
+      },
+    ]);
+
+    if (setupAnthropic) {
+      const { anthropicKey } = await inquirer.prompt([
+        {
+          type: 'password',
+          name: 'anthropicKey',
+          message: 'Anthropic API key (sk-ant-...):',
+          mask: '*',
+          validate: (input: string) => {
+            if (!input || input.length < 10) {
+              return 'Please enter a valid API key';
+            }
+            return true;
+          },
+        },
+      ]);
+
+      await setConfigValue('credentials.ANTHROPIC_API_KEY', anthropicKey);
+      this.log(chalk.green('   ✓') + ' Anthropic API key saved');
+    }
+
+    // OpenAI API Key
+    const { setupOpenAI } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'setupOpenAI',
+        message: 'Set up OpenAI API key (for Codex)?',
+        default: false,
+      },
+    ]);
+
+    if (setupOpenAI) {
+      const { openaiKey } = await inquirer.prompt([
+        {
+          type: 'password',
+          name: 'openaiKey',
+          message: 'OpenAI API key (sk-...):',
+          mask: '*',
+          validate: (input: string) => {
+            if (!input || input.length < 10) {
+              return 'Please enter a valid API key';
+            }
+            return true;
+          },
+        },
+      ]);
+
+      await setConfigValue('credentials.OPENAI_API_KEY', openaiKey);
+      this.log(chalk.green('   ✓') + ' OpenAI API key saved');
+    }
+
+    // Google Gemini API Key
+    const { setupGemini } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'setupGemini',
+        message: 'Set up Google Gemini API key?',
+        default: false,
+      },
+    ]);
+
+    if (setupGemini) {
+      const { geminiKey } = await inquirer.prompt([
+        {
+          type: 'password',
+          name: 'geminiKey',
+          message: 'Google Gemini API key:',
+          mask: '*',
+          validate: (input: string) => {
+            if (!input || input.length < 10) {
+              return 'Please enter a valid API key';
+            }
+            return true;
+          },
+        },
+      ]);
+
+      await setConfigValue('credentials.GEMINI_API_KEY', geminiKey);
+      this.log(chalk.green('   ✓') + ' Gemini API key saved');
+    }
+
+    this.log('');
+    this.log(
+      chalk.gray('Note: API keys are stored in ~/.agor/config.yaml (keep this file secure!)')
+    );
   }
 }
