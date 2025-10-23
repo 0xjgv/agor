@@ -1,4 +1,3 @@
-import { useRouter } from 'next/router';
 import type { DocsThemeConfig } from 'nextra-theme-docs';
 import { useConfig } from 'nextra-theme-docs';
 
@@ -31,18 +30,6 @@ const config: DocsThemeConfig = {
     link: 'https://github.com/mistercrunch/agor',
   },
   docsRepositoryBase: 'https://github.com/mistercrunch/agor/tree/main/apps/agor-docs',
-
-  useNextSeoProps() {
-    const { asPath } = useRouter();
-    if (asPath !== '/') {
-      return {
-        titleTemplate: '%s – Agor',
-      };
-    }
-    return {
-      titleTemplate: 'Agor – Next-gen agent orchestration',
-    };
-  },
 
   navigation: {
     prev: true,
