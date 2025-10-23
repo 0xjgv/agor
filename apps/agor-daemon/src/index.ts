@@ -181,6 +181,7 @@ async function main() {
 
         // Track active connections for debugging
         let activeConnections = 0;
+        let lastLoggedCount = 0;
 
         // Configure Socket.io for cursor presence events
         io.on('connection', socket => {
@@ -246,10 +247,11 @@ async function main() {
           });
         });
 
-        // Log connection metrics periodically (every 30 seconds)
+        // Log connection metrics only when count changes (every 30 seconds)
         setInterval(() => {
-          if (activeConnections > 0) {
+          if (activeConnections !== lastLoggedCount) {
             console.log(`📊 Active WebSocket connections: ${activeConnections}`);
+            lastLoggedCount = activeConnections;
           }
         }, 30000);
       }
