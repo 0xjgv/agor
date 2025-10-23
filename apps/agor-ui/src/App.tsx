@@ -475,9 +475,6 @@ function AppContent() {
 
   const handleDeleteWorktree = async (worktreeId: string, deleteFromFilesystem: boolean) => {
     if (!client) return;
-    // Close the modal immediately to prevent jarring close from WebSocket update
-    setWorktreeModalWorktreeId(null);
-
     try {
       // Use worktrees service: DELETE /worktrees/:id with query parameter
       await client.service('worktrees').remove(worktreeId, {
@@ -488,7 +485,6 @@ function AppContent() {
       message.error(
         `Failed to delete worktree: ${error instanceof Error ? error.message : String(error)}`
       );
-      // Could re-open modal on error, but probably not worth it
     }
   };
 

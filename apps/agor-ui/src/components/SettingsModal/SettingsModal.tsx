@@ -87,33 +87,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onDeleteMCPServer,
 }) => {
   const [selectedWorktree, setSelectedWorktree] = useState<Worktree | null>(null);
+  const [selectedRepo, setSelectedRepo] = useState<Repo | null>(null);
+  const [worktreeSessions, setWorktreeSessions] = useState<Session[]>([]);
   const [worktreeModalOpen, setWorktreeModalOpen] = useState(false);
 
   const handleWorktreeRowClick = (worktree: Worktree) => {
+    // Snapshot the data when opening modal
     setSelectedWorktree(worktree);
+    setSelectedRepo(repos.find(r => r.repo_id === worktree.repo_id) || null);
+    setWorktreeSessions(sessions.filter(s => s.worktree_id === worktree.worktree_id));
     setWorktreeModalOpen(true);
   };
 
   const handleWorktreeModalClose = () => {
     setWorktreeModalOpen(false);
+    // Clear after modal closes
     setSelectedWorktree(null);
+    setSelectedRepo(null);
+    setWorktreeSessions([]);
   };
 
   // Wrapper to close modal after deletion
-  const handleDeleteWorktreeWithClose = (worktreeId: string, deleteFromFilesystem: boolean) => {
-    onDeleteWorktree?.(worktreeId, deleteFromFilesystem);
+  const handleDeleteWorktreeWithClose = async (
+    worktreeId: string,
+    deleteFromFilesystem: boolean
+  ) => {
+    await onDeleteWorktree?.(worktreeId, deleteFromFilesystem);
     handleWorktreeModalClose();
   };
-
-  // Get repo for selected worktree
-  const selectedRepo = selectedWorktree
-    ? repos.find(r => r.repo_id === selectedWorktree.repo_id) || null
-    : null;
-
-  // Get sessions for selected worktree
-  const worktreeSessions = selectedWorktree
-    ? sessions.filter(s => s.worktree_id === selectedWorktree.worktree_id)
-    : [];
   return (
     <Modal title="Settings" open={open} onCancel={onClose} footer={null} width={1200}>
       <Tabs

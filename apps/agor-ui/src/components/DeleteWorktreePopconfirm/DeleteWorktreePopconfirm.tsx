@@ -20,12 +20,12 @@ export const DeleteWorktreePopconfirm: React.FC<DeleteWorktreePopconfirmProps> =
   const { token } = theme.useToken();
   const [deleteFromFilesystem, setDeleteFromFilesystem] = useState(true);
 
-  const handleConfirm = () => {
+  const handleConfirm = (e?: React.MouseEvent<HTMLElement>) => {
+    e?.stopPropagation();
     onConfirm(deleteFromFilesystem);
   };
 
   const handleCancel = (e?: React.MouseEvent<HTMLElement>) => {
-    // Prevent event from bubbling to parent modal
     e?.stopPropagation();
   };
 
