@@ -1,4 +1,5 @@
 import type { AgorClient } from '@agor/core/api';
+import type { BoardID, MCPServer, User, ZoneTrigger } from '@agor/core/types';
 import { BorderOutlined, DeleteOutlined, SelectOutlined } from '@ant-design/icons';
 import { Modal, Typography } from 'antd';
 import Handlebars from 'handlebars';
@@ -17,13 +18,13 @@ import {
   useEdgesState,
   useNodesState,
 } from 'reactflow';
-import type { BoardID, MCPServer, User, ZoneTrigger } from '@agor/core/types';
 import 'reactflow/dist/style.css';
 import './SessionCanvas.css';
+import type { Board, BoardObject, Session, Task, Worktree } from '@agor/core/types';
 import { useCursorTracking } from '../../hooks/useCursorTracking';
 import { usePresence } from '../../hooks/usePresence';
-import type { Board, BoardObject, Session, Task } from '@agor/core/types';
 import SessionCard from '../SessionCard';
+import WorktreeCard from '../WorktreeCard';
 import { ZoneNode } from './canvas/BoardObjectNodes';
 import { CursorNode } from './canvas/CursorNode';
 import { useBoardObjects } from './canvas/useBoardObjects';
@@ -88,9 +89,52 @@ const SessionNode = ({ data }: { data: SessionNodeData }) => {
   );
 };
 
+interface WorktreeNodeData {
+  worktree: Worktree;
+  sessions: Session[];
+  tasks: Record<string, Task[]>;
+  users: User[];
+  currentUserId?: string;
+  onTaskClick?: (taskId: string) => void;
+  onSessionClick?: (sessionId: string) => void;
+  onDelete?: (worktreeId: string) => void;
+  onOpenSettings?: (worktreeId: string) => void;
+  onUnpin?: (worktreeId: string) => void;
+  compact?: boolean;
+  isPinned?: boolean;
+  parentZoneId?: string;
+  zoneName?: string;
+  zoneColor?: string;
+}
+
+// Custom node component that renders WorktreeCard
+const WorktreeNode = ({ data }: { data: WorktreeNodeData }) => {
+  return (
+    <div className="worktree-node">
+      <WorktreeCard
+        worktree={data.worktree}
+        sessions={data.sessions}
+        tasks={data.tasks}
+        users={data.users}
+        currentUserId={data.currentUserId}
+        onTaskClick={data.onTaskClick}
+        onSessionClick={data.onSessionClick}
+        onDelete={data.onDelete}
+        onOpenSettings={data.onOpenSettings}
+        onUnpin={data.onUnpin}
+        isPinned={data.isPinned}
+        zoneName={data.zoneName}
+        zoneColor={data.zoneColor}
+        defaultExpanded={!data.compact}
+      />
+    </div>
+  );
+};
+
 // Define nodeTypes outside component to avoid recreation on every render
 const nodeTypes = {
   sessionNode: SessionNode,
+  worktreeNode: WorktreeNode,
   zone: ZoneNode,
   cursor: CursorNode,
 };
