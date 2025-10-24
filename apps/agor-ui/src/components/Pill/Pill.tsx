@@ -380,3 +380,43 @@ export const RepoPill: React.FC<RepoPillProps> = ({
     </Tag>
   );
 };
+
+interface IssuePillProps extends BasePillProps {
+  issueUrl: string;
+  issueNumber?: string;
+}
+
+export const IssuePill: React.FC<IssuePillProps> = ({ issueUrl, issueNumber, style }) => {
+  const displayText = issueNumber || issueUrl.split('/').pop() || 'Issue';
+
+  return (
+    <Tag
+      icon={<GithubOutlined />}
+      color={PILL_COLORS.git}
+      style={{ ...style, cursor: 'pointer' }}
+      onClick={() => window.open(issueUrl, '_blank')}
+    >
+      #{displayText}
+    </Tag>
+  );
+};
+
+interface PullRequestPillProps extends BasePillProps {
+  prUrl: string;
+  prNumber?: string;
+}
+
+export const PullRequestPill: React.FC<PullRequestPillProps> = ({ prUrl, prNumber, style }) => {
+  const displayText = prNumber || prUrl.split('/').pop() || 'PR';
+
+  return (
+    <Tag
+      icon={<BranchesOutlined />}
+      color={PILL_COLORS.git}
+      style={{ ...style, cursor: 'pointer' }}
+      onClick={() => window.open(prUrl, '_blank')}
+    >
+      PR #{displayText}
+    </Tag>
+  );
+};

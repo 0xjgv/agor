@@ -14,6 +14,7 @@ import {
 import { App, Badge, Button, Card, Collapse, Space, Spin, Tag, Typography, theme } from 'antd';
 import { useState } from 'react';
 import { CreatedByTag } from '../metadata';
+import { IssuePill, PullRequestPill } from '../Pill';
 import { ToolIcon } from '../ToolIcon';
 
 const WORKTREE_CARD_MAX_WIDTH = 600;
@@ -280,61 +281,30 @@ const WorktreeCard = ({
         </Space>
       </div>
 
-      {/* Worktree metadata */}
-      <div className="nodrag">
-        {/* Created By */}
-        {worktree.created_by && (
-          <div style={{ marginBottom: 8 }}>
+      {/* Worktree metadata - all pills on one row */}
+      <div className="nodrag" style={{ marginBottom: 8 }}>
+        <Space size={4} wrap>
+          {worktree.created_by && (
             <CreatedByTag
               createdBy={worktree.created_by}
               currentUserId={currentUserId}
               users={users}
               prefix="Created by"
             />
-          </div>
-        )}
-
-        {/* Links */}
-        {(worktree.issue_url || worktree.pull_request_url) && (
-          <div style={{ marginBottom: 8 }}>
-            <Space size={4}>
-              {worktree.issue_url && (
-                <Button
-                  type="link"
-                  size="small"
-                  icon={<LinkOutlined />}
-                  href={worktree.issue_url}
-                  target="_blank"
-                  style={{ padding: 0, height: 'auto' }}
-                >
-                  Issue
-                </Button>
-              )}
-              {worktree.pull_request_url && (
-                <Button
-                  type="link"
-                  size="small"
-                  icon={<BranchesOutlined />}
-                  href={worktree.pull_request_url}
-                  target="_blank"
-                  style={{ padding: 0, height: 'auto' }}
-                >
-                  PR
-                </Button>
-              )}
-            </Space>
-          </div>
-        )}
-
-        {/* Notes */}
-        {worktree.notes && (
-          <div style={{ marginBottom: 8 }}>
-            <Typography.Text type="secondary" style={{ fontSize: 12, fontStyle: 'italic' }}>
-              {worktree.notes}
-            </Typography.Text>
-          </div>
-        )}
+          )}
+          {worktree.issue_url && <IssuePill issueUrl={worktree.issue_url} />}
+          {worktree.pull_request_url && <PullRequestPill prUrl={worktree.pull_request_url} />}
+        </Space>
       </div>
+
+      {/* Notes */}
+      {worktree.notes && (
+        <div className="nodrag" style={{ marginBottom: 8 }}>
+          <Typography.Text type="secondary" style={{ fontSize: 12, fontStyle: 'italic' }}>
+            {worktree.notes}
+          </Typography.Text>
+        </div>
+      )}
 
       {/* Sessions - collapsible */}
       <div className="nodrag">
