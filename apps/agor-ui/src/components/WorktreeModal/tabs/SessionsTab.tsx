@@ -1,9 +1,7 @@
-import { MessageOutlined, ToolOutlined } from '@ant-design/icons';
-import { Button, Empty, List, Space, Tag, Typography } from 'antd';
 import type { Session, Worktree } from '@agor/core/types';
 import { TaskStatus } from '@agor/core/types';
-
-const { Text } = Typography;
+import { MessageOutlined, ToolOutlined } from '@ant-design/icons';
+import { Button, Empty, List, Space, Tag, Typography } from 'antd';
 
 interface SessionsTabProps {
   worktree: Worktree;
@@ -76,9 +74,9 @@ export const SessionsTab: React.FC<SessionsTabProps> = ({ worktree, sessions }) 
       {/* Active Sessions */}
       {activeSessions.length > 0 && (
         <div>
-          <Text strong style={{ fontSize: 14, display: 'block', marginBottom: 8 }}>
+          <Typography.Text strong style={{ fontSize: 14, display: 'block', marginBottom: 8 }}>
             Active Sessions ({activeSessions.length})
-          </Text>
+          </Typography.Text>
           <List
             size="small"
             bordered
@@ -110,33 +108,37 @@ export const SessionsTab: React.FC<SessionsTabProps> = ({ worktree, sessions }) 
                   }
                   title={
                     <Space>
-                      <Text code style={{ fontSize: 11 }}>
+                      <Typography.Text code style={{ fontSize: 11 }}>
                         {session.session_id.substring(0, 8)}
-                      </Text>
-                      <Text strong style={{ fontSize: 12, textTransform: 'capitalize' }}>
+                      </Typography.Text>
+                      <Typography.Text strong style={{ fontSize: 12, textTransform: 'capitalize' }}>
                         {session.agentic_tool}
-                      </Text>
+                      </Typography.Text>
                       {getStatusTag(session.status)}
                     </Space>
                   }
                   description={
                     <Space direction="vertical" size={0}>
                       {(session.title || session.description) && (
-                        <Text style={{ fontSize: 12 }}>{session.title || session.description}</Text>
+                        <Typography.Text style={{ fontSize: 12 }}>
+                          {session.title || session.description}
+                        </Typography.Text>
                       )}
                       <Space size="small" style={{ fontSize: 11 }}>
-                        <Text type="secondary">Created: {formatTimeAgo(session.created_at)}</Text>
-                        <Text type="secondary">
+                        <Typography.Text type="secondary">
+                          Created: {formatTimeAgo(session.created_at)}
+                        </Typography.Text>
+                        <Typography.Text type="secondary">
                           <MessageOutlined /> {session.message_count}
-                        </Text>
-                        <Text type="secondary">
+                        </Typography.Text>
+                        <Typography.Text type="secondary">
                           <ToolOutlined /> {session.tool_use_count}
-                        </Text>
+                        </Typography.Text>
                       </Space>
                       {session.tasks && session.tasks.length > 0 && (
-                        <Text type="secondary" style={{ fontSize: 11 }}>
+                        <Typography.Text type="secondary" style={{ fontSize: 11 }}>
                           📋 {session.tasks.length} task(s)
-                        </Text>
+                        </Typography.Text>
                       )}
                     </Space>
                   }
@@ -150,9 +152,9 @@ export const SessionsTab: React.FC<SessionsTabProps> = ({ worktree, sessions }) 
       {/* Completed Sessions */}
       {completedSessions.length > 0 && (
         <div>
-          <Text strong style={{ fontSize: 14, display: 'block', marginBottom: 8 }}>
+          <Typography.Text strong style={{ fontSize: 14, display: 'block', marginBottom: 8 }}>
             Completed Sessions ({completedSessions.length})
-          </Text>
+          </Typography.Text>
           <List
             size="small"
             bordered
@@ -176,35 +178,37 @@ export const SessionsTab: React.FC<SessionsTabProps> = ({ worktree, sessions }) 
                   }
                   title={
                     <Space>
-                      <Text code style={{ fontSize: 11 }}>
+                      <Typography.Text code style={{ fontSize: 11 }}>
                         {session.session_id.substring(0, 8)}
-                      </Text>
-                      <Text strong style={{ fontSize: 12, textTransform: 'capitalize' }}>
+                      </Typography.Text>
+                      <Typography.Text strong style={{ fontSize: 12, textTransform: 'capitalize' }}>
                         {session.agentic_tool}
-                      </Text>
+                      </Typography.Text>
                       {getStatusTag(session.status)}
                     </Space>
                   }
                   description={
                     <Space direction="vertical" size={0}>
                       {(session.title || session.description) && (
-                        <Text style={{ fontSize: 12 }}>{session.title || session.description}</Text>
+                        <Typography.Text style={{ fontSize: 12 }}>
+                          {session.title || session.description}
+                        </Typography.Text>
                       )}
                       <Space size="small" style={{ fontSize: 11 }}>
-                        <Text type="secondary">
+                        <Typography.Text type="secondary">
                           Completed: {formatTimeAgo(session.last_updated)}
-                        </Text>
-                        <Text type="secondary">
+                        </Typography.Text>
+                        <Typography.Text type="secondary">
                           <MessageOutlined /> {session.message_count}
-                        </Text>
-                        <Text type="secondary">
+                        </Typography.Text>
+                        <Typography.Text type="secondary">
                           <ToolOutlined /> {session.tool_use_count}
-                        </Text>
+                        </Typography.Text>
                       </Space>
                       {session.tasks && session.tasks.length > 0 && (
-                        <Text type="secondary" style={{ fontSize: 11 }}>
+                        <Typography.Text type="secondary" style={{ fontSize: 11 }}>
                           📋 {session.tasks.length} task(s)
-                        </Text>
+                        </Typography.Text>
                       )}
                     </Space>
                   }
@@ -223,9 +227,9 @@ export const SessionsTab: React.FC<SessionsTabProps> = ({ worktree, sessions }) 
       {/* Failed Sessions */}
       {failedSessions.length > 0 && (
         <div>
-          <Text strong style={{ fontSize: 14, display: 'block', marginBottom: 8 }}>
+          <Typography.Text strong style={{ fontSize: 14, display: 'block', marginBottom: 8 }}>
             Failed Sessions ({failedSessions.length})
-          </Text>
+          </Typography.Text>
           <List
             size="small"
             bordered
@@ -249,23 +253,25 @@ export const SessionsTab: React.FC<SessionsTabProps> = ({ worktree, sessions }) 
                   }
                   title={
                     <Space>
-                      <Text code style={{ fontSize: 11 }}>
+                      <Typography.Text code style={{ fontSize: 11 }}>
                         {session.session_id.substring(0, 8)}
-                      </Text>
-                      <Text strong style={{ fontSize: 12, textTransform: 'capitalize' }}>
+                      </Typography.Text>
+                      <Typography.Text strong style={{ fontSize: 12, textTransform: 'capitalize' }}>
                         {session.agentic_tool}
-                      </Text>
+                      </Typography.Text>
                       {getStatusTag(session.status)}
                     </Space>
                   }
                   description={
                     <Space direction="vertical" size={0}>
                       {(session.title || session.description) && (
-                        <Text style={{ fontSize: 12 }}>{session.title || session.description}</Text>
+                        <Typography.Text style={{ fontSize: 12 }}>
+                          {session.title || session.description}
+                        </Typography.Text>
                       )}
-                      <Text type="secondary" style={{ fontSize: 11 }}>
+                      <Typography.Text type="secondary" style={{ fontSize: 11 }}>
                         Failed: {formatTimeAgo(session.last_updated)}
-                      </Text>
+                      </Typography.Text>
                     </Space>
                   }
                 />

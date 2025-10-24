@@ -17,8 +17,6 @@ import { CreatedByTag } from '../metadata';
 import TaskListItem from '../TaskListItem';
 import { ToolIcon } from '../ToolIcon';
 
-const { Text } = Typography;
-
 const SESSION_CARD_MAX_WIDTH = 560;
 
 interface SessionCardProps {
@@ -88,11 +86,11 @@ const SessionCard = ({
         width: '100%',
       }}
     >
-      <Text strong>Tasks</Text>
+      <Typography.Text strong>Tasks</Typography.Text>
       {tasks.length > 5 && (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
           (showing latest 5 of {tasks.length})
-        </Text>
+        </Typography.Text>
       )}
     </div>
   );
@@ -145,9 +143,9 @@ const SessionCard = ({
           <div className="drag-handle" style={{ display: 'flex', alignItems: 'center' }}>
             <ToolIcon tool={session.agentic_tool} size={32} />
           </div>
-          <Text strong className="nodrag">
+          <Typography.Text strong className="nodrag">
             {session.agentic_tool}
-          </Text>
+          </Typography.Text>
           {session.status === TaskStatus.RUNNING ? (
             <Spin size="small" />
           ) : (
@@ -243,9 +241,9 @@ const SessionCard = ({
       <div className="nodrag">
         {/* Title/Description */}
         {(session.title || session.description) && (
-          <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>
+          <Typography.Text strong style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>
             {session.title || session.description}
-          </Text>
+          </Typography.Text>
         )}
 
         {/* Created By Tag */}
@@ -263,9 +261,9 @@ const SessionCard = ({
         {/* Git State */}
         <div style={{ marginBottom: 8 }}>
           <Space size={4}>
-            <Text type="secondary">
+            <Typography.Text type="secondary">
               📍 {session.git_state.ref} @ {cleanSha.substring(0, 7)}
-            </Text>
+            </Typography.Text>
             {isDirty && (
               <Tag icon={<EditOutlined />} color="orange" style={{ fontSize: 11 }}>
                 uncommitted
@@ -278,7 +276,7 @@ const SessionCard = ({
         {/* {session.contextFiles && session.contextFiles.length > 0 && (
           <div style={{ marginBottom: 12 }}>
             <Space size={4} wrap>
-              <Text type="secondary">📦</Text>
+              <Typography.Text type="secondary">📦</Typography.Text>
               {session.contextFiles.map((file) => (
                 <Tag key={file} color="geekblue">
                   {file}
@@ -306,9 +304,9 @@ const SessionCard = ({
 
         {/* Footer metadata - always visible */}
         <div style={{ marginTop: 12 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             💬 {session.message_count} messages
-          </Text>
+          </Typography.Text>
         </div>
       </div>
     </Card>

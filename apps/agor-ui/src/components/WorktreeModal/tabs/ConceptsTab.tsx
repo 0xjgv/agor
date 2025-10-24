@@ -7,8 +7,6 @@ import { useEffect, useState } from 'react';
 import { MarkdownFileCollection } from '../../MarkdownFileCollection/MarkdownFileCollection';
 import { MarkdownModal } from '../../MarkdownModal/MarkdownModal';
 
-const { Text } = Typography;
-
 interface ConceptsTabProps {
   worktree: Worktree;
   client: AgorClient | null;
@@ -87,12 +85,12 @@ export const ConceptsTab: React.FC<ConceptsTabProps> = ({ worktree, client }) =>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <Alert
           message={
-            <Text style={{ fontSize: 12 }}>
+            <Typography.Text style={{ fontSize: 12 }}>
               Agor looks for markdown files in{' '}
-              <Text code style={{ fontSize: 11 }}>
+              <Typography.Text code style={{ fontSize: 11 }}>
                 {'{REPO}'}/context/
-              </Text>
-            </Text>
+              </Typography.Text>
+            </Typography.Text>
           }
           type="info"
           showIcon

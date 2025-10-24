@@ -1,3 +1,4 @@
+import type { PermissionMode } from '@agor/core/types';
 import {
   EditOutlined,
   ExperimentOutlined,
@@ -6,9 +7,6 @@ import {
   UnlockOutlined,
 } from '@ant-design/icons';
 import { Radio, Select, Space, Typography } from 'antd';
-import type { PermissionMode } from '@agor/core/types';
-
-const { Text } = Typography;
 
 export interface PermissionModeSelectorProps {
   value?: PermissionMode;
@@ -176,11 +174,11 @@ export const PermissionModeSelector: React.FC<PermissionModeSelectorProps> = ({
             <Space>
               <span style={{ color }}>{icon}</span>
               <div>
-                <Text strong>{label}</Text>
+                <Typography.Text strong>{label}</Typography.Text>
                 <br />
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   {description}
-                </Text>
+                </Typography.Text>
               </div>
             </Space>
           </Radio>

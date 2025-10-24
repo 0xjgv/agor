@@ -15,7 +15,6 @@ import type React from 'react';
 import { useMemo, useState } from 'react';
 import type { ConceptListItem } from '../../types';
 
-const { Text } = Typography;
 const { Search } = Input;
 
 export interface MarkdownFileCollectionProps {
@@ -97,10 +96,10 @@ function buildTree(files: ConceptListItem[], searchQuery: string): TreeNode[] {
       key: file.path,
       title: (
         <span>
-          <Text strong>{file.title}</Text>
-          <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
+          <Typography.Text strong>{file.title}</Typography.Text>
+          <Typography.Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
             ({displayPath})
-          </Text>
+          </Typography.Text>
         </span>
       ),
       icon: <FileMarkdownOutlined />,

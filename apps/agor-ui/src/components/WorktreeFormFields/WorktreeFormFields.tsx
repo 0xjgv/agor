@@ -10,8 +10,6 @@ import type { Repo } from '@agor/core/types';
 import { Checkbox, Form, Input, Select, Space, Typography } from 'antd';
 import { useState } from 'react';
 
-const { Text } = Typography;
-
 export interface WorktreeFormFieldsProps {
   repos: Repo[];
   selectedRepoId: string | null;
@@ -162,12 +160,17 @@ export const WorktreeFormFields: React.FC<WorktreeFormFieldsProps> = ({
         <strong>What will happen:</strong>
         <br />• Fetch latest from origin
         <br />• Create new branch{' '}
-        <Text code>{useSameBranchName ? '<worktree-name>' : '<branch-name>'}</Text> based on{' '}
-        <Text code>{form.getFieldValue(`${fieldPrefix}sourceBranch`) || defaultBranch}</Text>
+        <Typography.Text code>
+          {useSameBranchName ? '<worktree-name>' : '<branch-name>'}
+        </Typography.Text>{' '}
+        based on{' '}
+        <Typography.Text code>
+          {form.getFieldValue(`${fieldPrefix}sourceBranch`) || defaultBranch}
+        </Typography.Text>
         <br />• Worktree location:{' '}
-        <Text code>
-          ~/.agor/worktrees/{'<repo>'}/<Text italic>{'<name>'}</Text>
-        </Text>
+        <Typography.Text code>
+          ~/.agor/worktrees/{'<repo>'}/<Typography.Text italic>{'<name>'}</Typography.Text>
+        </Typography.Text>
       </Typography.Paragraph>
     </>
   );

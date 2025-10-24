@@ -32,8 +32,6 @@ import { MarkdownRenderer } from '../MarkdownRenderer';
 import { ToolIcon } from '../ToolIcon';
 import { ToolUseRenderer } from '../ToolUseRenderer';
 
-const { Text } = Typography;
-
 interface ToolUseBlock {
   type: 'tool_use';
   id: string;
@@ -325,9 +323,9 @@ export const AgentChain: React.FC<AgentChainProps> = ({ messages }) => {
           </Tooltip>
         ),
         description: detailsLine ? (
-          <Text code type="secondary" ellipsis>
+          <Typography.Text code type="secondary" ellipsis>
             {detailsLine}
-          </Text>
+          </Typography.Text>
         ) : undefined,
         status,
         icon,
@@ -376,10 +374,10 @@ export const AgentChain: React.FC<AgentChainProps> = ({ messages }) => {
       {/* Files affected */}
       {stats.filesAffected.length > 0 && (
         <div>
-          <Text type="secondary" style={{ fontSize: 11 }}>
+          <Typography.Text type="secondary" style={{ fontSize: 11 }}>
             <FileTextOutlined /> {stats.filesAffected.length}{' '}
             {stats.filesAffected.length === 1 ? 'file' : 'files'} affected
-          </Text>
+          </Typography.Text>
         </div>
       )}
     </Space>
@@ -425,11 +423,11 @@ export const AgentChain: React.FC<AgentChainProps> = ({ messages }) => {
             )}
 
             {/* Summary text */}
-            <Text strong>
+            <Typography.Text strong>
               <BulbOutlined /> {stats.thoughtCount > 0 && `${stats.thoughtCount} thoughts`}
               {stats.thoughtCount > 0 && stats.toolCount > 0 && ', '}
               {stats.toolCount > 0 && `${stats.toolCount} tools`}
-            </Text>
+            </Typography.Text>
           </div>
 
           {/* Only show details when collapsed */}

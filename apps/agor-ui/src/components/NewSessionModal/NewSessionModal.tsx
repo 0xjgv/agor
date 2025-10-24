@@ -27,7 +27,6 @@ import type { ModelConfig } from '../ModelSelector';
 import { WorktreeFormFields } from '../WorktreeFormFields';
 
 const { TextArea } = Input;
-const { Text } = Typography;
 
 export interface RepoReferenceOption {
   label: string;
@@ -296,9 +295,9 @@ export const NewSessionModal: React.FC<NewSessionModalProps> = ({
         <Form.Item label="Select Coding Agent" required>
           <Space direction="vertical" style={{ width: '100%' }} size="small">
             {!selectedAgent && (
-              <Text type="secondary" style={{ fontSize: 12, marginBottom: 4 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12, marginBottom: 4 }}>
                 Click on an agent card to select it
-              </Text>
+              </Typography.Text>
             )}
             {availableAgents.map(agent => (
               <AgentSelectionCard
@@ -323,17 +322,17 @@ export const NewSessionModal: React.FC<NewSessionModalProps> = ({
               <Radio value="existing" disabled={!hasWorktrees}>
                 Use existing worktree
                 {!hasWorktrees && (
-                  <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
+                  <Typography.Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
                     (none available)
-                  </Text>
+                  </Typography.Text>
                 )}
               </Radio>
               <Radio value="new" disabled={!hasRepos}>
                 Create new worktree
                 {!hasRepos && (
-                  <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
+                  <Typography.Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
                     (no repos available)
-                  </Text>
+                  </Typography.Text>
                 )}
               </Radio>
             </Space>
@@ -349,7 +348,9 @@ export const NewSessionModal: React.FC<NewSessionModalProps> = ({
                 message="No worktrees available"
                 description={
                   <Space direction="vertical" size="small">
-                    <Text>You need to create a worktree before creating a session.</Text>
+                    <Typography.Text>
+                      You need to create a worktree before creating a session.
+                    </Typography.Text>
                     <Button
                       type="primary"
                       icon={<SettingOutlined />}
@@ -397,7 +398,9 @@ export const NewSessionModal: React.FC<NewSessionModalProps> = ({
                 message="No repositories available"
                 description={
                   <Space direction="vertical" size="small">
-                    <Text>You need to add a repository before creating a worktree.</Text>
+                    <Typography.Text>
+                      You need to add a repository before creating a worktree.
+                    </Typography.Text>
                     <Button
                       type="primary"
                       icon={<SettingOutlined />}
@@ -435,7 +438,7 @@ export const NewSessionModal: React.FC<NewSessionModalProps> = ({
                   items={[
                     {
                       key: 'worktree-details',
-                      label: <Text strong>Details (optional)</Text>,
+                      label: <Typography.Text strong>Details (optional)</Typography.Text>,
                       children: (
                         <Space direction="vertical" style={{ width: '100%' }}>
                           <Form.Item
@@ -489,7 +492,7 @@ export const NewSessionModal: React.FC<NewSessionModalProps> = ({
           label="Initial Prompt (optional)"
           help="What should this session work on?"
         >
-          <TextArea
+          <Typography.TextArea
             rows={4}
             placeholder="e.g., Build a JWT authentication system with secure password storage..."
           />
@@ -501,7 +504,7 @@ export const NewSessionModal: React.FC<NewSessionModalProps> = ({
           items={[
             {
               key: 'agentic-tool-config',
-              label: <Text strong>Agentic Tool Configuration</Text>,
+              label: <Typography.Text strong>Agentic Tool Configuration</Typography.Text>,
               children: (
                 <AgenticToolConfigForm
                   agenticTool={(selectedAgent as AgenticToolName) || 'claude-code'}

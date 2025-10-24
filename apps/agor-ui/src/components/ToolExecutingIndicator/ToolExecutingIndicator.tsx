@@ -9,8 +9,6 @@ import { CheckCircleOutlined, LoadingOutlined } from '@ant-design/icons';
 import { Space, Tag, Typography } from 'antd';
 import type { ToolExecution } from '../../hooks/useTaskEvents';
 
-const { Text } = Typography;
-
 interface ToolExecutingIndicatorProps {
   toolsExecuting: ToolExecution[];
 }
@@ -34,20 +32,14 @@ const ToolExecutingIndicator = ({ toolsExecuting }: ToolExecutingIndicatorProps)
       {toolsExecuting.map(tool => (
         <Tag
           key={tool.toolUseId}
-          icon={
-            tool.status === 'executing' ? (
-              <LoadingOutlined spin />
-            ) : (
-              <CheckCircleOutlined />
-            )
-          }
+          icon={tool.status === 'executing' ? <LoadingOutlined spin /> : <CheckCircleOutlined />}
           color={tool.status === 'executing' ? 'processing' : 'success'}
           style={{ margin: 0 }}
         >
-          <Text style={{ fontSize: 12 }}>
+          <Typography.Text style={{ fontSize: 12 }}>
             {tool.toolName}
             {tool.status === 'executing' ? ' executing...' : ' complete'}
-          </Text>
+          </Typography.Text>
         </Tag>
       ))}
     </Space>

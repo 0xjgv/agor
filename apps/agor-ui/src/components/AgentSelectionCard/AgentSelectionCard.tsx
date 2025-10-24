@@ -1,9 +1,7 @@
+import type { AgenticTool } from '@agor/core/types';
 import { CheckCircleOutlined, DownloadOutlined } from '@ant-design/icons';
 import { Button, Card, Space, Tag, Typography } from 'antd';
-import type { AgenticTool } from '@agor/core/types';
 import { ToolIcon } from '../ToolIcon';
-
-const { Text } = Typography;
 
 export interface AgentSelectionCardProps {
   agent: AgenticTool;
@@ -38,9 +36,9 @@ export const AgentSelectionCard: React.FC<AgentSelectionCardProps> = ({
         <Space style={{ width: '100%', justifyContent: 'space-between' }} size={8}>
           <Space size={8}>
             <ToolIcon tool={agent.id} size={24} />
-            <Text strong style={{ fontSize: '14px' }}>
+            <Typography.Text strong style={{ fontSize: '14px' }}>
               {agent.name}
-            </Text>
+            </Typography.Text>
             {agent.installed ? (
               <Tag
                 icon={<CheckCircleOutlined />}
@@ -71,15 +69,15 @@ export const AgentSelectionCard: React.FC<AgentSelectionCardProps> = ({
         </Space>
 
         {agent.version && (
-          <Text type="secondary" style={{ fontSize: '11px' }}>
+          <Typography.Text type="secondary" style={{ fontSize: '11px' }}>
             Version: {agent.version}
-          </Text>
+          </Typography.Text>
         )}
 
         {agent.description && (
-          <Text type="secondary" style={{ fontSize: '12px' }}>
+          <Typography.Text type="secondary" style={{ fontSize: '12px' }}>
             {agent.description}
-          </Text>
+          </Typography.Text>
         )}
       </Space>
     </Card>

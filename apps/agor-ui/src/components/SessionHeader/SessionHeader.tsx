@@ -9,8 +9,6 @@ import {
 } from '@ant-design/icons';
 import { Badge, Space, Spin, Tag, Typography, theme } from 'antd';
 
-const { Text } = Typography;
-
 interface SessionHeaderProps {
   session: Session;
   onClick?: () => void;
@@ -85,9 +83,9 @@ const SessionHeader = ({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Space size={token.sizeUnit} align="center">
           <span style={{ fontSize: 20, lineHeight: 1 }}>{getAgentIcon()}</span>
-          <Text strong style={{ textTransform: 'capitalize' }}>
+          <Typography.Text strong style={{ textTransform: 'capitalize' }}>
             {session.agentic_tool}
-          </Text>
+          </Typography.Text>
           {session.status === TaskStatus.RUNNING ? (
             <Spin size="small" />
           ) : (
@@ -118,7 +116,7 @@ const SessionHeader = ({
       </div>
 
       {(session.title || session.description) && (
-        <Text
+        <Typography.Text
           style={{ fontSize: 14, fontWeight: 500 }}
           ellipsis={{
             tooltip:
@@ -130,7 +128,7 @@ const SessionHeader = ({
           {typeof (session.title || session.description) === 'string'
             ? session.title || session.description
             : String(session.title || session.description)}
-        </Text>
+        </Typography.Text>
       )}
 
       {worktreeName && (
@@ -156,15 +154,15 @@ const SessionHeader = ({
 
       {showCounts && (
         <Space size={token.sizeUnit * 1.5} style={{ marginTop: token.sizeUnit / 2 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             📋 {session.tasks.length}
-          </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          </Typography.Text>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             <MessageOutlined /> {session.message_count}
-          </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          </Typography.Text>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             <ToolOutlined /> {session.tool_use_count}
-          </Text>
+          </Typography.Text>
         </Space>
       )}
     </div>

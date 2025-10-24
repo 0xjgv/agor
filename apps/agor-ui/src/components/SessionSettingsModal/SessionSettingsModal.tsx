@@ -1,12 +1,10 @@
+import type { MCPServer, Session } from '@agor/core/types';
 import { DownOutlined } from '@ant-design/icons';
 import { Collapse, Form, Modal, Typography } from 'antd';
 import React from 'react';
-import type { MCPServer, Session } from '@agor/core/types';
 import { AgenticToolConfigForm } from '../AgenticToolConfigForm';
 import type { ModelConfig } from '../ModelSelector';
 import { SessionMetadataForm } from '../SessionMetadataForm';
-
-const { Text } = Typography;
 
 export interface SessionSettingsModalProps {
   open: boolean;
@@ -163,14 +161,14 @@ export const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({
           items={[
             {
               key: 'metadata',
-              label: <Text strong>Session Metadata</Text>,
+              label: <Typography.Text strong>Session Metadata</Typography.Text>,
               children: (
                 <SessionMetadataForm showHelpText={true} titleRequired={false} titleLabel="Title" />
               ),
             },
             {
               key: 'agentic-tool-config',
-              label: <Text strong>Agentic Tool Configuration</Text>,
+              label: <Typography.Text strong>Agentic Tool Configuration</Typography.Text>,
               children: (
                 <AgenticToolConfigForm
                   agenticTool={session.agentic_tool}

@@ -12,7 +12,6 @@ import {
 } from '@ant-design/icons';
 import { List, Space, Spin, Tag, Tooltip, Typography, theme } from 'antd';
 
-const { Text } = Typography;
 const { useToken } = theme;
 
 const TRUNCATION_LENGTH = 120;
@@ -68,9 +67,9 @@ const TaskListItem = ({ task, onClick, compact = false }: TaskListItemProps) => 
             <Tooltip title={<div style={{ whiteSpace: 'pre-wrap' }}>{task.full_prompt}</div>}>
               <span>{getStatusIcon()}</span>
             </Tooltip>
-            <Text style={{ fontSize: compact ? 13 : 14, fontWeight: 500 }}>
+            <Typography.Text style={{ fontSize: compact ? 13 : 14, fontWeight: 500 }}>
               {displayDescription}
-            </Text>
+            </Typography.Text>
           </Space>
         </div>
 
@@ -92,9 +91,9 @@ const TaskListItem = ({ task, onClick, compact = false }: TaskListItemProps) => 
                 <span>
                   <Tag icon={<GithubOutlined />} color={isDirty ? 'orange' : 'purple'}>
                     <Space size={4}>
-                      <Text style={{ fontSize: 11, fontFamily: 'monospace' }}>
+                      <Typography.Text style={{ fontSize: 11, fontFamily: 'monospace' }}>
                         {cleanSha.substring(0, 7)}
-                      </Text>
+                      </Typography.Text>
                       {isDirty && <EditOutlined style={{ fontSize: 10 }} />}
                     </Space>
                   </Tag>
