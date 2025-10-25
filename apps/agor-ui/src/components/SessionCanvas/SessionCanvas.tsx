@@ -731,13 +731,15 @@ const SessionCanvas = ({
         isDraggingRef.current = false;
 
         try {
-          // Separate updates for worktrees vs zones (all use board_objects table)
+          // Separate updates for worktrees vs zones vs comments
           const worktreeUpdates: Array<{
             worktree_id: string;
             position: { x: number; y: number };
             zone_id?: string;
           }> = [];
           const zoneUpdates: Record<string, { x: number; y: number }> = {};
+          const commentUpdates: Array<{ comment_id: string; position: { x: number; y: number } }> =
+            [];
 
           // Find all current nodes to check types
           const currentNodes = nodes;
@@ -748,6 +750,13 @@ const SessionCanvas = ({
             if (draggedNode?.type === 'zone') {
               // Zone moved - update position via batchUpdateObjectPositions
               zoneUpdates[nodeId] = position;
+            } else if (draggedNode?.type === 'comment') {
+              // Comment pin moved - extract comment_id from node id
+              const commentId = nodeId.replace('comment-', '');
+              commentUpdates.push({
+                comment_id: commentId,
+                position,
+              });
             } else if (draggedNode?.type === 'worktreeNode') {
               // Check if worktree was dropped on a zone
               const zoneIntersection = findIntersectingZone(position);
@@ -906,6 +915,18 @@ const SessionCanvas = ({
           // Update zone positions
           if (Object.keys(zoneUpdates).length > 0) {
             await batchUpdateObjectPositions(zoneUpdates);
+          }
+
+          // Update comment positions
+          for (const { comment_id, position } of commentUpdates) {
+            await client.service('board-comments').patch(comment_id, {
+              position: {
+                absolute: position,
+              },
+            });
+          }
+          if (commentUpdates.length > 0) {
+            console.log('✓ Comment positions persisted:', commentUpdates.length, 'comments');
           }
         } catch (error) {
           console.error('Failed to persist layout:', error);
