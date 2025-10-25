@@ -12,6 +12,10 @@
   cursor: crosshair;
 }
 
+.react-flow.tool-mode-comment .react-flow__node {
+  cursor: crosshair;
+}
+
 .react-flow.tool-mode-eraser .react-flow__pane {
   cursor: pointer;
 }
