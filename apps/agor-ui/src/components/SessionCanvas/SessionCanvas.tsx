@@ -552,8 +552,8 @@ const SessionCanvas = ({
         return { ...newNode, selected: existingNode?.selected };
       });
 
-      // Merge: worktrees + existing zones + existing cursors + existing comments
-      return [...updatedWorktrees, ...existingZones, ...existingCursors, ...existingComments];
+      // Merge: zones (back) + worktrees (middle) + cursors/comments (front)
+      return [...existingZones, ...updatedWorktrees, ...existingCursors, ...existingComments];
     });
   }, [initialNodes, setNodes]);
 
@@ -578,7 +578,7 @@ const SessionCanvas = ({
           return { ...newZone, selected: existingZone?.selected };
         });
 
-      return [...worktrees, ...zones, ...cursors, ...comments];
+      return [...zones, ...worktrees, ...cursors, ...comments];
     });
   }, [getBoardObjectNodes, setNodes]); // REMOVED setNodes from dependencies
 
@@ -592,7 +592,7 @@ const SessionCanvas = ({
       const zones = currentNodes.filter(n => n.type === 'zone');
       const comments = currentNodes.filter(n => n.type === 'comment');
 
-      return [...worktrees, ...zones, ...comments, ...cursorNodes];
+      return [...zones, ...worktrees, ...comments, ...cursorNodes];
     });
   }, [cursorNodes, setNodes]); // REMOVED setNodes from dependencies
 
@@ -601,12 +601,12 @@ const SessionCanvas = ({
     if (isDraggingRef.current) return;
 
     setNodes(currentNodes => {
-      // Keep existing worktrees, zones, and cursors, replace comments
-      const worktrees = currentNodes.filter(n => n.type === 'worktreeNode');
+      // Keep existing zones, worktrees, and cursors, replace comments
       const zones = currentNodes.filter(n => n.type === 'zone');
+      const worktrees = currentNodes.filter(n => n.type === 'worktreeNode');
       const cursors = currentNodes.filter(n => n.type === 'cursor');
 
-      return [...worktrees, ...zones, ...cursors, ...commentNodes];
+      return [...zones, ...worktrees, ...cursors, ...commentNodes];
     });
   }, [commentNodes, setNodes]);
 
@@ -1290,15 +1290,15 @@ const SessionCanvas = ({
             // Handle cursor nodes (show as bright color)
             if (node.type === 'cursor') return token.colorWarning;
 
-            // Handle comment nodes
-            if (node.type === 'comment') return token.colorTextSecondary;
+            // Handle comment nodes - 100% alpha for top hierarchy
+            if (node.type === 'comment') return token.colorText;
 
-            // Handle board objects (zones) - darker gray for visibility
-            if (node.type === 'zone') return token.colorTextSecondary;
+            // Handle board objects (zones) - 40% alpha for middle-low layer
+            if (node.type === 'zone') return `${token.colorText}66`;
 
-            // Handle session nodes
+            // Handle session/worktree nodes - primary border color for middle-high layer
             const session = node.data.session as Session;
-            if (!session) return token.colorTextSecondary;
+            if (!session) return token.colorPrimaryBorder;
 
             switch (session.status) {
               case 'running':
@@ -1308,7 +1308,7 @@ const SessionCanvas = ({
               case 'failed':
                 return token.colorError;
               default:
-                return token.colorTextSecondary;
+                return token.colorPrimaryBorder;
             }
           }}
           pannable
@@ -1318,6 +1318,8 @@ const SessionCanvas = ({
             border: `1px solid ${token.colorBorder}`,
           }}
           maskColor={`${token.colorBgMask}40`}
+          maskStrokeColor={token.colorPrimary}
+          maskStrokeWidth={2}
           bgColor={token.colorBgContainer}
         />
       </ReactFlow>
