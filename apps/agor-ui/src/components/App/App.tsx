@@ -160,6 +160,11 @@ export const App: React.FC<AppProps> = ({
     const stored = localStorage.getItem('agor:commentsPanelCollapsed');
     return stored ? stored === 'true' : true; // Default to collapsed (hidden)
   });
+
+  // Comment highlight state (hover and sticky selection)
+  const [hoveredCommentId, setHoveredCommentId] = useState<string | null>(null);
+  const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
+
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [terminalCommands, setTerminalCommands] = useState<string[]>([]);
   const [sessionSettingsId, setSessionSettingsId] = useState<string | null>(null);
@@ -392,6 +397,8 @@ export const App: React.FC<AppProps> = ({
           onResolveComment={onResolveComment}
           onToggleReaction={onToggleReaction}
           onDeleteComment={onDeleteComment}
+          hoveredCommentId={hoveredCommentId}
+          selectedCommentId={selectedCommentId}
         />
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           <SessionCanvas
@@ -425,6 +432,11 @@ export const App: React.FC<AppProps> = ({
             onDeleteWorktree={onDeleteWorktree}
             onOpenTerminal={handleOpenTerminal}
             onOpenCommentsPanel={() => setCommentsPanelCollapsed(false)}
+            onCommentHover={setHoveredCommentId}
+            onCommentSelect={commentId => {
+              // Toggle selection: if clicking same comment, deselect
+              setSelectedCommentId(prev => (prev === commentId ? null : commentId));
+            }}
           />
           <NewSessionButton onClick={() => setNewWorktreeModalOpen(true)} />
         </div>

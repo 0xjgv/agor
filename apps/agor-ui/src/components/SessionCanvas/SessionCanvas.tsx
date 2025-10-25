@@ -70,6 +70,8 @@ interface SessionCanvasProps {
   onDeleteWorktree?: (worktreeId: string, deleteFromFilesystem: boolean) => void;
   onOpenTerminal?: (commands: string[]) => void;
   onOpenCommentsPanel?: () => void;
+  onCommentHover?: (commentId: string | null) => void;
+  onCommentSelect?: (commentId: string | null) => void;
 }
 
 interface SessionNodeData {
@@ -197,6 +199,8 @@ const SessionCanvas = ({
   onDeleteWorktree,
   onOpenTerminal,
   onOpenCommentsPanel,
+  onCommentHover,
+  onCommentSelect,
 }: SessionCanvasProps) => {
   const { token } = theme.useToken();
 
@@ -509,8 +513,16 @@ const SessionCanvas = ({
             replyCount: replyCount.get(comment.comment_id) || 0,
             user,
             onClick: (commentId: string) => {
+              // Notify parent of selection (toggle)
+              onCommentSelect?.(commentId);
               // Open comments panel if closed
               onOpenCommentsPanel?.();
+            },
+            onHover: (commentId: string) => {
+              onCommentHover?.(commentId);
+            },
+            onLeave: () => {
+              onCommentHover?.(null);
             },
           },
         });
@@ -518,7 +530,7 @@ const SessionCanvas = ({
     }
 
     return nodes;
-  }, [comments, users, onOpenCommentsPanel]);
+  }, [comments, users, onOpenCommentsPanel, onCommentHover, onCommentSelect]);
 
   // Sync SESSION nodes only (don't trigger on zone changes)
   useEffect(() => {

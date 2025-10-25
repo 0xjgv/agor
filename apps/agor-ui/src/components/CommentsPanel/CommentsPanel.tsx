@@ -7,14 +7,25 @@ import {
   DeleteOutlined,
   LeftOutlined,
   RightOutlined,
+  SendOutlined,
   SmileOutlined,
   UndoOutlined,
 } from '@ant-design/icons';
-import { Sender } from '@ant-design/x';
-import { Avatar, Badge, Button, List, Popover, Space, Spin, Tag, Typography, theme } from 'antd';
+import {
+  Avatar,
+  Badge,
+  Button,
+  Input,
+  List,
+  Popover,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+  theme,
+} from 'antd';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
-import type React from 'react';
-import { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 const { Text } = Typography;
 
@@ -32,6 +43,8 @@ export interface CommentsPanelProps {
   onResolveComment?: (commentId: string) => void;
   onToggleReaction?: (commentId: string, emoji: string) => void;
   onDeleteComment?: (commentId: string) => void;
+  hoveredCommentId?: string | null;
+  selectedCommentId?: string | null;
 }
 
 type FilterMode = 'all' | 'open' | 'mentions';
@@ -114,6 +127,105 @@ const EmojiPickerButton: React.FC<{
 };
 
 /**
+ * Individual reply component
+ */
+const ReplyItem: React.FC<{
+  reply: BoardComment;
+  users: User[];
+  currentUserId: string;
+  onToggleReaction?: (commentId: string, emoji: string) => void;
+  onDelete?: (commentId: string) => void;
+}> = ({ reply, users, currentUserId, onToggleReaction, onDelete }) => {
+  const { token } = theme.useToken();
+  const [replyHovered, setReplyHovered] = useState(false);
+  const replyUser = users.find(u => u.user_id === reply.created_by);
+  const isReplyCurrentUser = reply.created_by === currentUserId;
+
+  return (
+    <List.Item
+      style={{
+        borderBottom: 'none',
+        padding: '4px 0',
+      }}
+    >
+      <div
+        style={{ width: '100%', position: 'relative' }}
+        onMouseEnter={() => setReplyHovered(true)}
+        onMouseLeave={() => setReplyHovered(false)}
+      >
+        <List.Item.Meta
+          avatar={
+            <Avatar size="small" style={{ backgroundColor: token.colorPrimary }}>
+              {replyUser?.emoji || '👤'}
+            </Avatar>
+          }
+          title={
+            <Space size={4}>
+              <Text strong style={{ fontSize: token.fontSizeSM }}>
+                {replyUser?.name || 'Anonymous'}
+              </Text>
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+                {new Date(reply.created_at).toLocaleTimeString()}
+              </Text>
+            </Space>
+          }
+          description={
+            <div style={{ marginTop: 2 }}>
+              <Text style={{ fontSize: token.fontSizeSM }}>{reply.content}</Text>
+            </div>
+          }
+        />
+
+        {/* Reactions Row (always visible if reactions exist) */}
+        {onToggleReaction && (reply.reactions || []).length > 0 && (
+          <div style={{ marginTop: 2 }}>
+            <Space size="small">
+              <ReactionDisplay
+                reactions={reply.reactions || []}
+                currentUserId={currentUserId}
+                onToggle={emoji => onToggleReaction(reply.comment_id, emoji)}
+              />
+            </Space>
+          </div>
+        )}
+
+        {/* Action buttons overlay (visible on hover) */}
+        {replyHovered && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 4,
+              right: 0,
+              backgroundColor: token.colorBgContainer,
+              borderRadius: 4,
+              padding: '2px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+            }}
+          >
+            <Space size="small">
+              {onToggleReaction && (
+                <EmojiPickerButton onToggle={emoji => onToggleReaction(reply.comment_id, emoji)} />
+              )}
+              {onDelete && isReplyCurrentUser && (
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<DeleteOutlined />}
+                  onClick={() => onDelete(reply.comment_id)}
+                  title="Delete"
+                  danger
+                  style={{ color: token.colorTextSecondary }}
+                />
+              )}
+            </Space>
+          </div>
+        )}
+      </div>
+    </List.Item>
+  );
+};
+
+/**
  * Individual comment thread component (root + nested replies)
  */
 const CommentThread: React.FC<{
@@ -125,6 +237,8 @@ const CommentThread: React.FC<{
   onResolve?: (commentId: string) => void;
   onToggleReaction?: (commentId: string, emoji: string) => void;
   onDelete?: (commentId: string) => void;
+  isHighlighted?: boolean;
+  scrollRef?: React.RefObject<HTMLDivElement>;
 }> = ({
   comment,
   replies,
@@ -134,6 +248,8 @@ const CommentThread: React.FC<{
   onResolve,
   onToggleReaction,
   onDelete,
+  isHighlighted,
+  scrollRef,
 }) => {
   const { token } = theme.useToken();
   const [showReplyInput, setShowReplyInput] = useState(false);
@@ -143,9 +259,14 @@ const CommentThread: React.FC<{
 
   return (
     <List.Item
+      ref={scrollRef}
       style={{
-        borderBottom: `1px solid ${token.colorBorderSecondary}`,
-        padding: '16px 0',
+        borderBottom: `1px solid ${token.colorBorder}`,
+        padding: isHighlighted ? `${token.paddingXS}px` : '8px 0',
+        border: `2px solid ${isHighlighted ? token.colorPrimary : 'transparent'}`,
+        borderRadius: token.borderRadiusLG,
+        marginBottom: '4px',
+        transition: 'all 0.2s ease',
       }}
     >
       <div
@@ -156,36 +277,43 @@ const CommentThread: React.FC<{
         {/* Thread Root */}
         <List.Item.Meta
           avatar={
-            <Avatar style={{ backgroundColor: token.colorPrimary }}>{user?.emoji || '👤'}</Avatar>
+            <Avatar size="small" style={{ backgroundColor: token.colorPrimary }}>
+              {user?.emoji || '👤'}
+            </Avatar>
           }
           title={
-            <Space size={8}>
-              <Text strong>{user?.name || 'Anonymous'}</Text>
-              <Text type="secondary" style={{ fontSize: 12 }}>
+            <Space size={4}>
+              <Text strong style={{ fontSize: token.fontSizeSM }}>
+                {user?.name || 'Anonymous'}
+              </Text>
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                 {new Date(comment.created_at).toLocaleTimeString()}
               </Text>
               {comment.edited && (
-                <Text type="secondary" style={{ fontSize: 11, fontStyle: 'italic' }}>
+                <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontStyle: 'italic' }}>
                   (edited)
                 </Text>
               )}
               {comment.resolved && (
-                <Tag color="success" style={{ fontSize: 11, lineHeight: '16px', margin: 0 }}>
+                <Tag
+                  color="success"
+                  style={{ fontSize: token.fontSizeSM, lineHeight: '16px', margin: 0 }}
+                >
                   Resolved
                 </Tag>
               )}
             </Space>
           }
           description={
-            <div style={{ marginTop: 8 }}>
-              <Text>{comment.content}</Text>
+            <div style={{ marginTop: 4 }}>
+              <Text style={{ fontSize: token.fontSizeSM }}>{comment.content}</Text>
             </div>
           }
         />
 
         {/* Reactions Row (always visible if reactions exist) */}
         {onToggleReaction && (comment.reactions || []).length > 0 && (
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 4 }}>
             <Space size="small">
               <ReactionDisplay
                 reactions={comment.reactions || []}
@@ -201,11 +329,11 @@ const CommentThread: React.FC<{
           <div
             style={{
               position: 'absolute',
-              top: 8,
+              top: 4,
               right: 0,
               backgroundColor: token.colorBgContainer,
               borderRadius: 4,
-              padding: '4px',
+              padding: '2px',
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
             }}
           >
@@ -264,119 +392,40 @@ const CommentThread: React.FC<{
         {replies.length > 0 && (
           <div
             style={{
-              marginLeft: 24,
-              marginTop: 12,
+              marginLeft: 16,
+              marginTop: 8,
               borderLeft: `2px solid ${token.colorBorder}`,
-              paddingLeft: 12,
+              paddingLeft: 8,
             }}
           >
             <List
               dataSource={replies}
-              renderItem={reply => {
-                const replyUser = users.find(u => u.user_id === reply.created_by);
-                const isReplyCurrentUser = reply.created_by === currentUserId;
-                const [replyHovered, setReplyHovered] = useState(false);
-                return (
-                  <List.Item
-                    style={{
-                      borderBottom: 'none',
-                      padding: '8px 0',
-                    }}
-                  >
-                    <div
-                      style={{ width: '100%', position: 'relative' }}
-                      onMouseEnter={() => setReplyHovered(true)}
-                      onMouseLeave={() => setReplyHovered(false)}
-                    >
-                      <List.Item.Meta
-                        avatar={
-                          <Avatar size="small" style={{ backgroundColor: token.colorPrimary }}>
-                            {replyUser?.emoji || '👤'}
-                          </Avatar>
-                        }
-                        title={
-                          <Space size={4}>
-                            <Text strong style={{ fontSize: 14 }}>
-                              {replyUser?.name || 'Anonymous'}
-                            </Text>
-                            <Text type="secondary" style={{ fontSize: 11 }}>
-                              {new Date(reply.created_at).toLocaleTimeString()}
-                            </Text>
-                          </Space>
-                        }
-                        description={
-                          <div style={{ marginTop: 4 }}>
-                            <Text style={{ fontSize: 14 }}>{reply.content}</Text>
-                          </div>
-                        }
-                      />
-
-                      {/* Reactions Row (always visible if reactions exist) */}
-                      {onToggleReaction && (reply.reactions || []).length > 0 && (
-                        <div style={{ marginTop: 4 }}>
-                          <Space size="small">
-                            <ReactionDisplay
-                              reactions={reply.reactions || []}
-                              currentUserId={currentUserId}
-                              onToggle={emoji => onToggleReaction(reply.comment_id, emoji)}
-                            />
-                          </Space>
-                        </div>
-                      )}
-
-                      {/* Action buttons overlay (visible on hover) */}
-                      {replyHovered && (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            top: 8,
-                            right: 0,
-                            backgroundColor: token.colorBgContainer,
-                            borderRadius: 4,
-                            padding: '4px',
-                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-                          }}
-                        >
-                          <Space size="small">
-                            {onToggleReaction && (
-                              <EmojiPickerButton
-                                onToggle={emoji => onToggleReaction(reply.comment_id, emoji)}
-                              />
-                            )}
-                            {onDelete && isReplyCurrentUser && (
-                              <Button
-                                type="text"
-                                size="small"
-                                icon={<DeleteOutlined />}
-                                onClick={() => onDelete(reply.comment_id)}
-                                title="Delete"
-                                danger
-                                style={{ color: token.colorTextSecondary }}
-                              />
-                            )}
-                          </Space>
-                        </div>
-                      )}
-                    </div>
-                  </List.Item>
-                );
-              }}
+              renderItem={reply => (
+                <ReplyItem
+                  reply={reply}
+                  users={users}
+                  currentUserId={currentUserId}
+                  onToggleReaction={onToggleReaction}
+                  onDelete={onDelete}
+                />
+              )}
             />
           </div>
         )}
 
         {/* Reply Input */}
         {showReplyInput && onReply && (
-          <div style={{ marginLeft: 48, marginTop: 8 }}>
-            <Sender
+          <div style={{ marginLeft: 32, marginTop: 4 }}>
+            <Input.Search
               placeholder="Reply..."
-              onSubmit={content => {
-                onReply(comment.comment_id, content);
-                setShowReplyInput(false);
+              enterButton={<SendOutlined />}
+              onSearch={value => {
+                if (value.trim()) {
+                  onReply(comment.comment_id, value);
+                  setShowReplyInput(false);
+                }
               }}
-              style={{
-                backgroundColor: token.colorBgContainer,
-              }}
+              autoFocus
             />
           </div>
         )}
@@ -401,9 +450,15 @@ export const CommentsPanel: React.FC<CommentsPanelProps> = ({
   onResolveComment,
   onToggleReaction,
   onDeleteComment,
+  hoveredCommentId,
+  selectedCommentId,
 }) => {
   const { token } = theme.useToken();
   const [filter, setFilter] = useState<FilterMode>('all');
+  const [commentInputValue, setCommentInputValue] = useState('');
+
+  // Create refs for scroll-to-view
+  const commentRefs = React.useRef<Record<string, React.RefObject<HTMLDivElement>>>({});
 
   // Separate thread roots from replies
   const threadRoots = useMemo(() => comments.filter(c => isThreadRoot(c)), [comments]);
@@ -435,6 +490,16 @@ export const CommentsPanel: React.FC<CommentsPanelProps> = ({
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   }, [threadRoots, filter, currentUserId]);
 
+  // Scroll to selected comment when it changes
+  useEffect(() => {
+    if (selectedCommentId && commentRefs.current[selectedCommentId]) {
+      commentRefs.current[selectedCommentId]?.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }
+  }, [selectedCommentId]);
+
   // When collapsed, don't render anything
   if (collapsed) {
     return null;
@@ -455,7 +520,7 @@ export const CommentsPanel: React.FC<CommentsPanelProps> = ({
       {/* Header */}
       <div
         style={{
-          padding: 16,
+          padding: 12,
           borderBottom: `1px solid ${token.colorBorder}`,
           display: 'flex',
           alignItems: 'center',
@@ -463,8 +528,10 @@ export const CommentsPanel: React.FC<CommentsPanelProps> = ({
         }}
       >
         <Space>
-          <CommentOutlined />
-          <Text strong>Comments</Text>
+          <CommentOutlined style={{ fontSize: token.fontSizeSM }} />
+          <Text strong style={{ fontSize: token.fontSizeSM }}>
+            Comments
+          </Text>
           <Badge count={filteredThreads.length} showZero={false} />
         </Space>
         {onToggleCollapse && (
@@ -477,7 +544,7 @@ export const CommentsPanel: React.FC<CommentsPanelProps> = ({
       {/* Filter Tabs */}
       <div
         style={{
-          padding: 16,
+          padding: 12,
           borderBottom: `1px solid ${token.colorBorder}`,
           backgroundColor: token.colorBgContainer,
         }}
@@ -512,7 +579,7 @@ export const CommentsPanel: React.FC<CommentsPanelProps> = ({
         style={{
           flex: 1,
           overflow: 'auto',
-          padding: '0 16px',
+          padding: '0 12px',
           backgroundColor: token.colorBgLayout,
         }}
       >
@@ -535,18 +602,30 @@ export const CommentsPanel: React.FC<CommentsPanelProps> = ({
         ) : (
           <List
             dataSource={filteredThreads}
-            renderItem={thread => (
-              <CommentThread
-                comment={thread}
-                replies={repliesByParent[thread.comment_id] || []}
-                users={users}
-                currentUserId={currentUserId}
-                onReply={onReplyComment}
-                onResolve={onResolveComment}
-                onToggleReaction={onToggleReaction}
-                onDelete={onDeleteComment}
-              />
-            )}
+            renderItem={thread => {
+              // Create or get ref for this thread
+              if (!commentRefs.current[thread.comment_id]) {
+                commentRefs.current[thread.comment_id] = React.createRef<HTMLDivElement>();
+              }
+
+              const isHighlighted =
+                thread.comment_id === hoveredCommentId || thread.comment_id === selectedCommentId;
+
+              return (
+                <CommentThread
+                  comment={thread}
+                  replies={repliesByParent[thread.comment_id] || []}
+                  users={users}
+                  currentUserId={currentUserId}
+                  onReply={onReplyComment}
+                  onResolve={onResolveComment}
+                  onToggleReaction={onToggleReaction}
+                  onDelete={onDeleteComment}
+                  isHighlighted={isHighlighted}
+                  scrollRef={commentRefs.current[thread.comment_id]}
+                />
+              );
+            }}
           />
         )}
       </div>
@@ -554,19 +633,21 @@ export const CommentsPanel: React.FC<CommentsPanelProps> = ({
       {/* Input Box for new top-level comment */}
       <div
         style={{
-          padding: 16,
+          padding: 12,
           borderTop: `1px solid ${token.colorBorder}`,
           backgroundColor: token.colorBgContainer,
         }}
       >
-        <Sender
+        <Input.Search
           placeholder="Add a comment..."
-          onSubmit={content => {
-            onSendComment(content);
-            return true; // Return true to clear the input
-          }}
-          style={{
-            backgroundColor: token.colorBgContainer,
+          enterButton={<SendOutlined />}
+          value={commentInputValue}
+          onChange={e => setCommentInputValue(e.target.value)}
+          onSearch={value => {
+            if (value.trim()) {
+              onSendComment(value);
+              setCommentInputValue('');
+            }
           }}
         />
       </div>

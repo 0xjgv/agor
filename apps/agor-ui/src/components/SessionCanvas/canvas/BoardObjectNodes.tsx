@@ -401,6 +401,8 @@ interface CommentNodeData {
   replyCount: number;
   user?: import('@agor/core/types').User;
   onClick?: (commentId: string) => void;
+  onHover?: (commentId: string) => void;
+  onLeave?: () => void;
 }
 
 // Pin dimensions and positioning constants
@@ -413,7 +415,7 @@ const PIN_OFFSET_Y = -PIN_HEIGHT; // Position tip at coordinate
 const CommentNodeComponent = ({ data }: { data: CommentNodeData }) => {
   const { token } = theme.useToken();
   const { zoom } = useViewport();
-  const { comment, replyCount, user, onClick } = data;
+  const { comment, replyCount, user, onClick, onHover, onLeave } = data;
   const [isHovered, setIsHovered] = useState(false);
 
   // Show first line of content as preview
@@ -429,8 +431,14 @@ const CommentNodeComponent = ({ data }: { data: CommentNodeData }) => {
   return (
     <div
       onClick={() => onClick?.(comment.comment_id)}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={() => {
+        setIsHovered(true);
+        onHover?.(comment.comment_id);
+      }}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        onLeave?.();
+      }}
       style={{
         position: 'relative',
         cursor: 'grab',
