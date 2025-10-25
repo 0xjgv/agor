@@ -501,8 +501,8 @@ const CommentNodeComponent = ({ data }: { data: CommentNodeData }) => {
             position: 'absolute',
             left: '40px',
             top: '0',
-            minWidth: '240px',
-            maxWidth: '320px',
+            minWidth: '280px',
+            maxWidth: '360px',
             background: token.colorBgElevated,
             border: `1px solid ${pinColor}`,
             borderRadius: token.borderRadiusLG,
@@ -513,11 +513,34 @@ const CommentNodeComponent = ({ data }: { data: CommentNodeData }) => {
             animation: 'fadeIn 0.15s ease-out',
           }}
         >
-          {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+          {/* User and status header */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 8,
+              paddingBottom: 8,
+              borderBottom: `1px solid ${token.colorBorderSecondary}`,
+            }}
+          >
+            <div style={{ fontSize: 16 }}>{user?.emoji || '💬'}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: token.colorText }}>
+                {user?.name || 'Anonymous'}
+              </div>
+              <div style={{ fontSize: 11, color: token.colorTextSecondary }}>
+                {new Date(comment.created_at).toLocaleString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })}
+              </div>
+            </div>
             <div
               style={{
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: 600,
                 color: pinColor,
                 textTransform: 'uppercase',
@@ -526,13 +549,6 @@ const CommentNodeComponent = ({ data }: { data: CommentNodeData }) => {
             >
               {comment.resolved ? 'Resolved' : 'Open'}
             </div>
-            {comment.reactions && comment.reactions.length > 0 && (
-              <div style={{ fontSize: 12, marginLeft: 'auto' }}>
-                {comment.reactions.slice(0, 3).map(r => (
-                  <span key={`${r.user_id}-${r.emoji}`}>{r.emoji}</span>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Content preview */}
@@ -542,10 +558,45 @@ const CommentNodeComponent = ({ data }: { data: CommentNodeData }) => {
               color: token.colorText,
               lineHeight: '1.5',
               wordBreak: 'break-word',
+              marginBottom: 8,
             }}
           >
             {preview}
             {hasMore && <span style={{ color: token.colorTextSecondary }}>...</span>}
+          </div>
+
+          {/* Footer with reactions and reply count */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingTop: 8,
+              borderTop: `1px solid ${token.colorBorderSecondary}`,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {comment.reactions && comment.reactions.length > 0 && (
+                <div style={{ fontSize: 13 }}>
+                  {comment.reactions.slice(0, 3).map(r => (
+                    <span key={`${r.user_id}-${r.emoji}`}>{r.emoji}</span>
+                  ))}
+                  {comment.reactions.length > 3 && (
+                    <span style={{ fontSize: 11, color: token.colorTextSecondary, marginLeft: 2 }}>
+                      +{comment.reactions.length - 3}
+                    </span>
+                  )}
+                </div>
+              )}
+              {replyCount > 0 && (
+                <div style={{ fontSize: 11, color: token.colorTextSecondary }}>
+                  {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
+                </div>
+              )}
+            </div>
+            <div style={{ fontSize: 11, color: token.colorTextTertiary, fontStyle: 'italic' }}>
+              Click to view
+            </div>
           </div>
         </div>
       )}
