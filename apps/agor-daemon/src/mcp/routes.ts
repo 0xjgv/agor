@@ -261,6 +261,70 @@ export function setupMCPRoutes(app: Application): void {
                 required: ['taskId'],
               },
             },
+
+            // User tools
+            {
+              name: 'agor_users_list',
+              description: 'List all users in the system',
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  limit: {
+                    type: 'number',
+                    description: 'Maximum number of results (default: 50)',
+                  },
+                },
+              },
+            },
+            {
+              name: 'agor_users_get',
+              description: 'Get detailed information about a specific user',
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  userId: {
+                    type: 'string',
+                    description: 'User ID (UUIDv7)',
+                  },
+                },
+                required: ['userId'],
+              },
+            },
+            {
+              name: 'agor_users_get_current',
+              description:
+                'Get information about the current authenticated user (the user associated with this MCP session)',
+              inputSchema: {
+                type: 'object',
+                properties: {},
+              },
+            },
+            {
+              name: 'agor_users_update_current',
+              description:
+                'Update the current user profile (name, emoji, avatar, preferences). Can only update own profile.',
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  name: {
+                    type: 'string',
+                    description: 'Display name',
+                  },
+                  emoji: {
+                    type: 'string',
+                    description: 'User emoji (single emoji character)',
+                  },
+                  avatar: {
+                    type: 'string',
+                    description: 'Avatar URL',
+                  },
+                  preferences: {
+                    type: 'object',
+                    description: 'User preferences (JSON object)',
+                  },
+                },
+              },
+            },
           ],
         };
       } else if (mcpRequest.method === 'notifications/initialized') {
@@ -518,6 +582,71 @@ export function setupMCPRoutes(app: Application): void {
               {
                 type: 'text',
                 text: JSON.stringify(task, null, 2),
+              },
+            ],
+          };
+
+          // User tools
+        } else if (name === 'agor_users_list') {
+          const query: Record<string, unknown> = {};
+          if (args?.limit) query.$limit = args.limit;
+
+          const users = await app.service('users').find({ query });
+          mcpResponse = {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(users, null, 2),
+              },
+            ],
+          };
+        } else if (name === 'agor_users_get') {
+          if (!args?.userId) {
+            return res.status(400).json({
+              jsonrpc: '2.0',
+              id: mcpRequest.id,
+              error: {
+                code: -32602,
+                message: 'Invalid params: userId is required',
+              },
+            });
+          }
+
+          const user = await app.service('users').get(args.userId);
+          mcpResponse = {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(user, null, 2),
+              },
+            ],
+          };
+        } else if (name === 'agor_users_get_current') {
+          // Get current user from context (authenticated via MCP token)
+          const user = await app.service('users').get(context.userId);
+          mcpResponse = {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(user, null, 2),
+              },
+            ],
+          };
+        } else if (name === 'agor_users_update_current') {
+          // Update current user profile
+          // Only allow updating name, emoji, avatar, preferences
+          const updateData: Record<string, unknown> = {};
+          if (args?.name !== undefined) updateData.name = args.name;
+          if (args?.emoji !== undefined) updateData.emoji = args.emoji;
+          if (args?.avatar !== undefined) updateData.avatar = args.avatar;
+          if (args?.preferences !== undefined) updateData.preferences = args.preferences;
+
+          const updatedUser = await app.service('users').patch(context.userId, updateData);
+          mcpResponse = {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(updatedUser, null, 2),
               },
             ],
           };

@@ -47,7 +47,7 @@ async function callMCPTool(name: string, args: any = {}) {
 }
 
 describe('MCP Tools - Session Tools', () => {
-  it('tools/list returns all 10 tools', async () => {
+  it('tools/list returns all 14 tools', async () => {
     const resp = await fetch(`${DAEMON_URL}/mcp?sessionToken=${sessionToken}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -59,7 +59,7 @@ describe('MCP Tools - Session Tools', () => {
     });
 
     const data = await resp.json();
-    expect(data.result.tools).toHaveLength(10);
+    expect(data.result.tools).toHaveLength(14);
 
     // biome-ignore lint/suspicious/noExplicitAny: JSON response type from MCP server
     const toolNames = data.result.tools.map((t: any) => t.name);
@@ -73,6 +73,10 @@ describe('MCP Tools - Session Tools', () => {
     expect(toolNames).toContain('agor_boards_list');
     expect(toolNames).toContain('agor_tasks_list');
     expect(toolNames).toContain('agor_tasks_get');
+    expect(toolNames).toContain('agor_users_list');
+    expect(toolNames).toContain('agor_users_get');
+    expect(toolNames).toContain('agor_users_get_current');
+    expect(toolNames).toContain('agor_users_update_current');
   });
 
   it('agor_sessions_list returns sessions', async () => {
@@ -198,5 +202,54 @@ describe('MCP Tools - Task Tools', () => {
 
     expect(result.task_id).toBe(taskId);
     expect(result).toHaveProperty('status');
+  });
+});
+
+describe('MCP Tools - User Tools', () => {
+  it('agor_users_list returns users', async () => {
+    const result = await callMCPTool('agor_users_list', { limit: 5 });
+
+    expect(result).toHaveProperty('total');
+    expect(result).toHaveProperty('data');
+    expect(Array.isArray(result.data)).toBe(true);
+  });
+
+  it('agor_users_get_current returns current user', async () => {
+    const result = await callMCPTool('agor_users_get_current');
+
+    expect(result).toHaveProperty('user_id');
+    expect(result).toHaveProperty('email');
+    expect(result).toHaveProperty('role');
+  });
+
+  it('agor_users_get returns specific user', async () => {
+    // First get current user
+    const currentUser = await callMCPTool('agor_users_get_current');
+
+    // Then fetch it specifically
+    const result = await callMCPTool('agor_users_get', { userId: currentUser.user_id });
+
+    expect(result.user_id).toBe(currentUser.user_id);
+    expect(result.email).toBe(currentUser.email);
+  });
+
+  it('agor_users_update_current updates user profile', async () => {
+    // Get original state
+    const originalUser = await callMCPTool('agor_users_get_current');
+
+    // Update with test data
+    const updatedUser = await callMCPTool('agor_users_update_current', {
+      name: 'Test User',
+      emoji: '🤖',
+    });
+
+    expect(updatedUser.name).toBe('Test User');
+    expect(updatedUser.emoji).toBe('🤖');
+
+    // Restore original state
+    await callMCPTool('agor_users_update_current', {
+      name: originalUser.name,
+      emoji: originalUser.emoji,
+    });
   });
 });
