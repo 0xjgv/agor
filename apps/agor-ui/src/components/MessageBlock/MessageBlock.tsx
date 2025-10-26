@@ -9,17 +9,17 @@
  * - User emoji avatars
  */
 
+import {
+  type Message,
+  type PermissionRequestContent,
+  PermissionScope,
+  PermissionStatus,
+  type User,
+} from '@agor/core/types';
 import { RobotOutlined } from '@ant-design/icons';
 import { Bubble } from '@ant-design/x';
 import { Avatar, theme } from 'antd';
 import type React from 'react';
-import {
-  type Message,
-  type User,
-  type PermissionRequestContent,
-  PermissionScope,
-  PermissionStatus,
-} from '@agor/core/types';
 import { MarkdownRenderer } from '../MarkdownRenderer';
 import { PermissionRequestBlock } from '../PermissionRequestBlock';
 import { ToolIcon } from '../ToolIcon';
@@ -94,19 +94,13 @@ export const MessageBlock: React.FC<MessageBlockProps> = ({
           onApprove={
             canInteract && onPermissionDecision && sessionId && taskId
               ? (messageId, scope) => {
-                  onPermissionDecision(
-                    sessionId,
-                    content.request_id,
-                    taskId,
-                    true,
-                    scope
-                  );
+                  onPermissionDecision(sessionId, content.request_id, taskId, true, scope);
                 }
               : undefined
           }
           onDeny={
             canInteract && onPermissionDecision && sessionId && taskId
-              ? (messageId) => {
+              ? messageId => {
                   onPermissionDecision(
                     sessionId,
                     content.request_id,
@@ -227,7 +221,7 @@ export const MessageBlock: React.FC<MessageBlockProps> = ({
             placement={isUser ? 'end' : 'start'}
             avatar={
               isUser ? (
-                <Avatar style={{ backgroundColor: token.colorPrimary, fontSize: '20px' }}>
+                <Avatar style={{ backgroundColor: token.colorPrimaryBg, fontSize: '20px' }}>
                   {userEmoji}
                 </Avatar>
               ) : agentic_tool ? (
@@ -246,7 +240,7 @@ export const MessageBlock: React.FC<MessageBlockProps> = ({
             variant={isUser ? 'filled' : 'outlined'}
             styles={{
               content: {
-                backgroundColor: isUser ? token.colorPrimary : undefined,
+                backgroundColor: isUser ? token.colorPrimaryBg : undefined,
                 color: isUser ? '#fff' : undefined,
               },
             }}
