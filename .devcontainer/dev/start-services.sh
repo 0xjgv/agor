@@ -13,17 +13,22 @@ if [ ! -d ~/.agor ]; then
   echo "   - See https://github.com/mistercrunch/agor for local installation"
   echo ""
 
-  # Run agor init with --force to skip prompts (anonymous mode, no auth)
+  # Run agor init with --force (anonymous mode, no prompts)
   cd /workspaces/agor/apps/agor-cli
   pnpm exec tsx bin/dev.ts init --force
 
+  # Create default admin user
+  echo "👤 Creating admin user..."
+  pnpm exec tsx bin/dev.ts user create-admin
+
   echo ""
-  echo "✅ Basic initialization complete!"
+  echo "✅ Initialization complete!"
   echo ""
-  echo "📝 IMPORTANT: Run 'agor init' again to:"
-  echo "   - Set up authentication (create admin user)"
-  echo "   - Configure API keys (Anthropic, OpenAI, Google)"
-  echo "   - Customize settings for your workflow"
+  echo "📝 Login credentials:"
+  echo "   Email:    admin@agor.live"
+  echo "   Password: admin"
+  echo ""
+  echo "💡 Tip: Run 'agor init' again to configure API keys (Anthropic, OpenAI, Google)"
   echo ""
 fi
 
@@ -100,3 +105,9 @@ echo "⚠️  SANDBOX MODE"
 echo "   - Use 'Ports' panel to make URLs public for collaboration"
 echo "   - Data is ephemeral (persists only while Codespace is active)"
 echo ""
+echo "🔄 Keeping services running (Ctrl+C to stop)..."
+echo ""
+
+# Keep script running to prevent background jobs from being killed
+# This is necessary for postStartCommand to keep services alive
+wait

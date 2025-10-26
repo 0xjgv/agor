@@ -136,5 +136,9 @@ echo "   - Try Agor without setup"
 echo "   - Create sessions, orchestrate AI agents"
 echo "   - Source code is read-only (for dev, use 'dev' container)"
 echo ""
-echo "💡 Services are running in the background and will persist until Codespace stops."
+echo "🔄 Keeping services running (Ctrl+C to stop)..."
 echo ""
+
+# Keep script running to prevent background jobs from being killed
+# This is necessary for postStartCommand to keep services alive
+wait
