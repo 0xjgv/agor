@@ -14,7 +14,6 @@ Simple todo list for launch preparation.
 
 ### Distribution
 
-- [ ] Fix codespaces setup for Agor repo
 - [ ] Publish `@agor/core` to npm
 - [ ] Publish `@agor/daemon` to npm
 - [ ] Publish `@agor/cli` to npm

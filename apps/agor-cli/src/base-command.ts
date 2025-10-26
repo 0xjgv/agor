@@ -25,17 +25,28 @@ export abstract class BaseCommand extends Command {
     // Get daemon URL from config
     this.daemonUrl = await getDaemonUrl();
 
-    // Check if daemon is running
+    // Check if daemon is running (fast fail with 1s timeout)
     const running = await isDaemonRunning(this.daemonUrl);
 
     if (!running) {
-      this.error(
-        `Daemon not running at ${this.daemonUrl}.\nStart it with: ${chalk.cyan('cd apps/agor-daemon && pnpm dev')}`
+      this.log(
+        chalk.red('✗ Daemon not running') +
+          '\n\n' +
+          chalk.bold('To start the daemon:') +
+          '\n  ' +
+          chalk.cyan('cd apps/agor-daemon && pnpm dev') +
+          '\n\n' +
+          chalk.bold('To configure daemon URL:') +
+          '\n  ' +
+          chalk.cyan('agor config set daemon.url <url>') +
+          '\n  ' +
+          chalk.gray(`Current: ${this.daemonUrl}`)
       );
+      this.exit(1);
     }
 
-    // Create and return client
-    return createClient(this.daemonUrl);
+    // Create and return client (no verbose logging, health check already passed)
+    return createClient(this.daemonUrl, true, { verbose: false });
   }
 
   /**

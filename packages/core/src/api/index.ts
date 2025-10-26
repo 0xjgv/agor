@@ -183,11 +183,16 @@ export interface AgorClient extends Omit<Application<ServiceTypes>, 'service'> {
  *
  * @param url - Daemon URL (default: http://localhost:3030)
  * @param autoConnect - Auto-connect socket (default: true for CLI, false for React)
+ * @param options - Additional options
  * @returns Feathers client instance with socket exposed
  */
 export function createClient(
   url: string = 'http://localhost:3030',
-  autoConnect: boolean = true
+  autoConnect: boolean = true,
+  options?: {
+    /** Show connection status logs (useful for CLI) */
+    verbose?: boolean;
+  }
 ): AgorClient {
   // Configure socket.io with better defaults for React StrictMode and reconnection
   const socket = io(url, {
@@ -195,16 +200,37 @@ export function createClient(
     autoConnect,
     // Reconnection settings (less aggressive to prevent socket exhaustion)
     reconnection: true,
-    reconnectionDelay: 2000, // Wait 2s before first reconnect attempt
-    reconnectionDelayMax: 10000, // Max 10s between attempts
-    reconnectionAttempts: 10, // Try 10 times before giving up
+    reconnectionDelay: 1000, // Wait 1s before first reconnect attempt
+    reconnectionDelayMax: 2000, // Max 2s between attempts
+    reconnectionAttempts: 2, // Only try 2 times before giving up (fast fail for CLI)
     // Timeout settings
-    timeout: 10000,
+    timeout: 2000, // 2s timeout for initial connection
     // Transports (WebSocket preferred, fallback to polling)
     transports: ['websocket', 'polling'],
     // Connection lifecycle settings
     closeOnBeforeunload: true, // Close socket when page unloads
   });
+
+  // Add connection monitoring if verbose mode enabled
+  if (options?.verbose) {
+    let attemptCount = 0;
+
+    socket.on('connect_error', (error: Error) => {
+      attemptCount++;
+      if (attemptCount === 1) {
+        console.error(`✗ Daemon not running at ${url}`);
+        console.error(`  Retrying connection (${attemptCount}/2)...`);
+      } else {
+        console.error(`  Retry ${attemptCount}/2 failed`);
+      }
+    });
+
+    socket.on('connect', () => {
+      if (attemptCount > 0) {
+        console.log('✓ Connected to daemon');
+      }
+    });
+  }
 
   const client = feathers<ServiceTypes>() as AgorClient;
 

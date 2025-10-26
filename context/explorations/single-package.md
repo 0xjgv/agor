@@ -1,8 +1,9 @@
 # Single-Package Distribution
 
-**Status:** Critical Path for Launch
+**Status:** Simplified - Single Package Distribution
 **Target:** Phase 4 (Q2 2025)
 **Date:** January 2025
+**Update:** Package name `agor` is taken on npm - using `agor-live`
 
 ---
 
@@ -21,47 +22,52 @@ Currently, Agor requires:
 
 ## Goal
 
-Provide a single npm package that bundles CLI, daemon, and UI:
+Provide single npm package for easy installation:
 
 ```bash
-npm install -g agor
-agor init              # Setup + auto-start daemon
-agor                   # Opens UI in browser
+npm install -g agor-live
+agor daemon start      # Start daemon manually
+agor session list      # CLI commands (daemon must be running)
+agor ui open           # Opens browser → http://localhost:3030
 ```
 
-**One package, zero configuration, instant start.**
+**Single package, explicit daemon control, no magic.**
 
 ---
 
-## Recommended Approach: Bundled CLI + Daemon + UI
+## Recommended Approach: Single Package with Manual Daemon
 
 **Architecture:**
 
 ```
-agor (npm package)
-├── bin/agor.js           # CLI entry point
-├── daemon/
-│   └── index.js          # Bundled daemon (esbuild)
-└── ui/
-    └── dist/             # Pre-built React app
+agor-live (npm package)
+├── bin/
+│   ├── agor.js           # CLI entry point
+│   └── agor-daemon.js    # Daemon entry point
+└── dist/
+    ├── core/             # Bundled @agor/core code
+    ├── cli/              # Bundled CLI code
+    ├── daemon/           # Bundled daemon code
+    └── ui/               # Pre-built React app (served at /ui)
 ```
 
 **User Experience:**
 
 ```bash
-npm install -g agor
-agor init                 # Creates ~/.agor/, starts daemon
-agor start                # Opens browser → http://localhost:3030
-agor session list         # CLI commands (daemon auto-starts)
+npm install -g agor-live
+agor daemon start         # Start daemon manually in background
+agor session list         # CLI commands (requires daemon running)
+agor ui open              # Opens browser → http://localhost:3030/ui
 ```
 
 **Key Features:**
 
-- ✅ Single package installation
-- ✅ Auto-start daemon on first CLI command
-- ✅ UI served from daemon at localhost:3030
-- ✅ Smart daemon lifecycle (auto-restart after idle timeout)
+- ✅ Single package installation (everything bundled)
+- ✅ Explicit daemon control (no auto-start magic)
+- ✅ UI bundled and served from daemon at localhost:3030/ui
+- ✅ Clear error messages if daemon not running
 - ✅ Works offline (local SQLite database)
+- ✅ No external dependencies to publish
 
 ---
 
@@ -70,14 +76,24 @@ agor session list         # CLI commands (daemon auto-starts)
 ### Package Structure
 
 ```
-agor/
-├── packages/agor/            # Meta-package for npm
-│   ├── package.json
-│   ├── bin/agor.js          # CLI entry point
-│   ├── daemon/
-│   │   └── index.js         # Bundled daemon (esbuild output)
-│   └── ui/
-│       └── dist/            # Pre-built React app
+agor/ (monorepo - development)
+├── apps/
+│   ├── agor-cli/            # CLI source
+│   ├── agor-daemon/         # Daemon source
+│   └── agor-ui/             # UI source
+│
+└── packages/
+    ├── core/                # Shared code (bundled, not published)
+    └── agor-live/           # Published package
+        ├── package.json
+        ├── bin/
+        │   ├── agor.js
+        │   └── agor-daemon.js
+        └── dist/            # Built artifacts (copied here)
+            ├── core/
+            ├── cli/
+            ├── daemon/
+            └── ui/
 ```
 
 ### Daemon Lifecycle Management
@@ -90,132 +106,106 @@ agor daemon logs       # View daemon logs (~/.agor/logs/daemon.log)
 agor daemon restart    # Restart daemon
 ```
 
-**Auto-Start Behavior:**
+**Manual Start Required:**
 
-- All CLI commands check if daemon is running
-- If not running, auto-start daemon as detached process
-- Daemon auto-shuts down after 10 minutes of inactivity (configurable)
-- Override with `agor daemon start --no-idle-timeout`
+- CLI commands check if daemon is running
+- If not running, exit with error: "Daemon not running. Start with: agor daemon start"
+- No auto-start behavior (explicit control)
+- Daemon runs until manually stopped
 
 **Implementation:**
 
 ```typescript
-// packages/agor-cli/src/utils/daemon-manager.ts
-import { spawn } from 'child_process';
-import { checkHealth } from './health';
+// apps/agor-cli/src/utils/health.ts
+export async function checkHealth(url: string, timeout = 2000): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-export class DaemonManager {
-  async ensureDaemonRunning(): Promise<void> {
-    const isRunning = await checkHealth('http://localhost:3030/health');
-    if (isRunning) return;
-
-    console.log('Starting Agor daemon...');
-
-    // Start daemon as detached child process
-    const daemon = spawn('node', [path.join(__dirname, '../../daemon/index.js')], {
-      detached: true,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, AGOR_DAEMON: 'true' },
+    const response = await fetch(url, {
+      signal: controller.signal,
+      // Prevent hanging on connection refused
+      keepalive: false
     });
 
-    // Write logs to ~/.agor/logs/daemon.log
-    const logStream = fs.createWriteStream(path.join(os.homedir(), '.agor/logs/daemon.log'), {
-      flags: 'a',
-    });
-    daemon.stdout?.pipe(logStream);
-    daemon.stderr?.pipe(logStream);
-
-    daemon.unref();
-    await this.waitForHealthy();
-  }
-
-  async waitForHealthy(timeout = 10000): Promise<void> {
-    const start = Date.now();
-    while (Date.now() - start < timeout) {
-      if (await checkHealth('http://localhost:3030/health')) return;
-      await sleep(100);
-    }
-    throw new Error('Daemon failed to start');
+    clearTimeout(timeoutId);
+    return response.ok;
+  } catch (error) {
+    // Connection refused, timeout, or network error
+    return false;
   }
 }
+
+export async function ensureDaemonRunning(): Promise<void> {
+  const isRunning = await checkHealth('http://localhost:3030/health', 1000); // 1s timeout
+  if (!isRunning) {
+    console.error('Error: Daemon not running.');
+    console.error('Start the daemon with: agor daemon start');
+    process.exit(1);
+  }
+}
+
+// Before every CLI command (in base command class)
+async init() {
+  await ensureDaemonRunning();
+}
 ```
+
+**Key improvements:**
+
+- 1-second timeout on health check (fast feedback)
+- AbortController to cancel hanging requests
+- Fail immediately on connection refused
 
 ### Build & Bundle Process
 
-**1. Bundle Daemon (esbuild):**
+**Build script for `agor-live` package:**
 
 ```bash
-# Build daemon as single JS file
-cd apps/agor-daemon
-esbuild src/index.ts \
-  --bundle \
-  --platform=node \
-  --target=node18 \
-  --outfile=../../packages/agor/daemon/index.js \
-  --external:@agor/core \
-  --minify
-```
-
-**2. Build UI (Vite):**
-
-```bash
-# Build React app
-cd apps/agor-ui
+# 1. Build core
+cd packages/core
 pnpm build
-cp -r dist ../../packages/agor/ui/
+
+# 2. Build UI
+cd ../../apps/agor-ui
+pnpm build
+
+# 3. Build CLI
+cd ../agor-cli
+pnpm build
+
+# 4. Build Daemon
+cd ../agor-daemon
+pnpm build
+
+# 5. Bundle everything into agor-live package
+cd ../../packages/agor-live
+mkdir -p dist/{core,cli,daemon,ui}
+cp -r ../core/dist/* dist/core/
+cp -r ../../apps/agor-cli/dist/* dist/cli/
+cp -r ../../apps/agor-daemon/dist/* dist/daemon/
+cp -r ../../apps/agor-ui/dist/* dist/ui/
 ```
 
-**3. Publish Meta-Package:**
+**`packages/agor-live/package.json`:**
 
 ```json
-// packages/agor/package.json
 {
-  "name": "agor",
+  "name": "agor-live",
   "version": "1.0.0",
+  "description": "Multiplayer canvas for orchestrating AI coding sessions",
   "bin": {
-    "agor": "./bin/agor.js"
+    "agor": "./bin/agor.js",
+    "agor-daemon": "./bin/agor-daemon.js"
   },
-  "files": ["bin/", "daemon/", "ui/dist/"],
+  "files": ["bin/", "dist/"],
   "dependencies": {
-    "@agor/core": "^1.0.0"
+    "drizzle-orm": "^0.x.x",
+    "feathers": "^5.x.x"
+    // ... other runtime deps
   }
 }
 ```
-
-```bash
-cd packages/agor
-npm publish
-```
-
----
-
-## Future: Desktop App (Phase 5)
-
-**Goal:** Native application experience
-
-1. Choose framework: **Tauri** (lighter than Electron)
-2. Embed daemon as Tauri sidecar
-3. Create native installers
-4. Add system tray integration
-
-```bash
-brew install --cask agor  # macOS
-winget install agor        # Windows
-```
-
-**Time:** 6-8 weeks
-
-**Tauri vs Electron:**
-
-| Feature            | Tauri     | Electron      |
-| ------------------ | --------- | ------------- |
-| Bundle size        | 10-20MB   | 100-200MB     |
-| Memory usage       | ~50MB     | ~200MB        |
-| Native integration | Excellent | Good          |
-| Maturity           | Newer     | Battle-tested |
-| Rust knowledge     | Required  | Not required  |
-
-**Recommendation:** Tauri for size benefits (critical for CLI-like tool)
 
 ---
 
@@ -264,113 +254,45 @@ winget install agor        # Windows
 
 ---
 
-### Option C: Desktop App Only (No Browser UI)
-
-**How it works:**
-
-- No standalone browser UI
-- Desktop app is the only UI
-- CLI for power users, app for visual users
-
-**Pros:**
-
-- Single distribution channel
-- Best UX (native app)
-
-**Cons:**
-
-- No web-based UI for remote access
-- Requires desktop app development
-
----
-
-### Recommended: Hybrid Approach
-
-**Phase 4a-b:** Option A (UI served by daemon)
-**Phase 4c:** Option C (Desktop app with embedded UI)
+### Recommended: Option A (UI Served by Daemon)
 
 **Reasoning:**
 
-- Early users (Phase 4a-b) are technical, okay with browser UI
-- Desktop app (Phase 4c) provides native experience for end users
-- Keep browser UI for teams that want to self-host Agor daemon
+- Simple single-package distribution
+- No CORS issues or version mismatches
+- UI always matches daemon version
+- Teams can self-host Agor daemon
+- Additional ~2-5MB is acceptable for better UX
 
 ---
 
 ## Package Naming Strategy
 
-### Option 1: Scoped Package (Recommended)
+**Decision: `agor-live` (unscoped)**
+
+The package name `agor` is already taken on npm, so we use `agor-live`:
 
 ```bash
-npm install -g @agor/cli      # CLI commands
-npm install -g @agor/daemon   # Background daemon
-npm install -g @agor/ui       # UI dev server (optional)
+npm install -g agor-live
 ```
 
-**Pros:**
+**Binary names:**
 
-- Clear ownership (@agor namespace)
-- Easy to add more packages later
-- Follows npm best practices
+- `agor` - Main CLI binary
+- `agor-daemon` - Daemon binary (optional direct use)
 
-**Cons:**
+**Why `agor-live`:**
 
-- Longer command: `npx @agor/cli` vs `npx agor`
-
----
-
-### Option 2: Unscoped Package
-
-```bash
-npm install -g agor           # Everything bundled
-```
-
-**Pros:**
-
-- Simplest user experience
-- Short command name
-
-**Cons:**
-
-- Namespace collision risk
-- All-or-nothing (can't install just CLI)
-
----
-
-### Recommended: Start Scoped, Alias to Unscoped
-
-```bash
-# Phase 4a: Scoped packages
-npm install -g @agor/cli
-npm install -g @agor/daemon
-
-# Phase 4b: Unscoped alias that installs both
-npm install -g agor  # Meta-package that installs @agor/cli + @agor/daemon
-```
-
-**Implementation:**
-
-```json
-// packages/agor/package.json (meta-package)
-{
-  "name": "agor",
-  "version": "1.0.0",
-  "description": "Agor CLI and daemon (meta-package)",
-  "bin": {
-    "agor": "./bin/agor.js"
-  },
-  "dependencies": {
-    "@agor/cli": "^1.0.0",
-    "@agor/daemon": "^1.0.0"
-  }
-}
-```
+- Simple, unscoped package name
+- Single installation command
+- Clear branding (live collaboration)
+- Avoids complexity of scoped packages
 
 ---
 
 ## Daemon Lifecycle Management
 
-### Option A: Manual Start/Stop
+**Decision: Manual Start/Stop Only**
 
 **User workflow:**
 
@@ -379,6 +301,7 @@ agor daemon start              # Start in background
 agor daemon stop               # Stop daemon
 agor daemon status             # Check status
 agor daemon logs               # View logs
+agor session list              # Fails if daemon not running
 ```
 
 **Implementation:**
@@ -386,85 +309,19 @@ agor daemon logs               # View logs
 - Use pid files (`~/.agor/daemon.pid`)
 - Spawn detached child process
 - Log to `~/.agor/logs/daemon.log`
+- Health check before every CLI command (1s timeout)
+- Fast-fail with clear error message
 
 **Pros:**
 
-- Explicit control
-- No surprises (daemon doesn't auto-start)
+- Explicit control (no magic)
+- Simple implementation (no auto-start logic)
+- Easy to debug (user knows daemon state)
 
 **Cons:**
 
-- Extra step for users
-- Need to remember to start daemon
-
----
-
-### Option B: Auto-Start (Recommended)
-
-**User workflow:**
-
-```bash
-agor session list              # Auto-starts daemon if not running
-```
-
-**Implementation:**
-
-```typescript
-// Before every CLI command
-async function ensureDaemon() {
-  const isRunning = await checkHealth('http://localhost:3030/health');
-  if (!isRunning) {
-    console.log('Starting Agor daemon...');
-    await daemonManager.start();
-  }
-}
-```
-
-**Pros:**
-
-- Zero-friction user experience
-- "It just works"
-
-**Cons:**
-
-- Daemon runs indefinitely (memory usage)
-- Users may not realize daemon is running
-
-**Mitigation:**
-
-- Add `agor daemon status` to show daemon info
-- Show daemon status in `agor config` output
-- Implement idle timeout (stop after 1 hour of inactivity)
-
----
-
-### Option C: On-Demand + Smart Shutdown (Best)
-
-**User workflow:**
-
-```bash
-agor session list              # Auto-starts daemon, auto-stops after 10min idle
-```
-
-**Implementation:**
-
-- CLI checks daemon health before each command
-- Daemon tracks last activity timestamp
-- Daemon auto-shuts down after idle period (configurable)
-- CLI can override idle timeout: `agor daemon start --no-idle-timeout`
-
-**Pros:**
-
-- Best of both worlds (auto-start + clean shutdown)
-- No manual management
-- No wasted resources
-
-**Cons:**
-
-- More complex implementation
-- Edge cases (what if daemon shuts down mid-command?)
-
-**Recommended:** Implement Option C in Phase 4b
+- User must remember to start daemon
+- Extra step on first use
 
 ---
 
@@ -484,32 +341,18 @@ agor/
 
 ### NPM Publishing Strategy
 
-**Phase 4a: Scoped Packages**
+**Single package publish:**
 
 ```bash
-# Publish core first
-cd packages/core
-pnpm build
-pnpm publish --access public  # @agor/core
+# 1. Build everything
+cd packages/agor-live
+./build.sh  # Builds core, CLI, daemon, UI and copies to dist/
 
-# Publish daemon
-cd apps/agor-daemon
-pnpm build
-pnpm publish --access public  # @agor/daemon
-
-# Publish CLI
-cd apps/agor-cli
-pnpm build
-pnpm publish --access public  # @agor/cli
+# 2. Publish agor-live (contains everything)
+pnpm publish
 ```
 
-**Phase 4b: Meta-Package**
-
-```bash
-# After @agor/cli and @agor/daemon are published
-cd packages/agor
-pnpm publish --access public  # agor (depends on @agor/cli + @agor/daemon)
-```
+**That's it!** One package, one publish command.
 
 ### Release Automation (Changesets)
 
@@ -547,16 +390,12 @@ jobs:
 
 ## Installation Size Comparison
 
-| Distribution       | Size   | Includes            | Installation Time |
-| ------------------ | ------ | ------------------- | ----------------- |
-| Git clone          | ~50MB  | Full source         | ~30s (pnpm)       |
-| @agor/cli (npm)    | ~2MB   | CLI only            | ~5s               |
-| @agor/daemon (npm) | ~10MB  | Daemon + core       | ~10s              |
-| agor (npm bundled) | ~12MB  | CLI + daemon + core | ~15s              |
-| Tauri desktop app  | ~15MB  | Everything + UI     | ~30s (download)   |
-| Electron app       | ~150MB | Everything + UI     | ~2min (download)  |
+| Distribution    | Size  | Includes          | Installation Time |
+| --------------- | ----- | ----------------- | ----------------- |
+| Git clone (dev) | ~50MB | Full source       | ~30s (pnpm)       |
+| agor-live (npm) | ~12MB | CLI + daemon + UI | ~15s              |
 
-**Recommendation:** Target <20MB for bundled npm package, <30MB for Tauri app
+**Recommendation:** Target <20MB for bundled package
 
 ---
 
@@ -613,68 +452,49 @@ prisma migrate dev             # Auto-starts Prisma Studio
 
 ---
 
-## Decision Matrix
+## Decision Summary
 
-| Criterion              | CLI-Only | Bundled CLI+Daemon | Desktop App |
-| ---------------------- | -------- | ------------------ | ----------- |
-| Time to implement      | 2 weeks  | 4 weeks            | 8 weeks     |
-| User setup complexity  | Medium   | Low                | Lowest      |
-| Package size           | 2MB      | 12MB               | 15-150MB    |
-| Cross-platform support | ✅       | ✅                 | ✅          |
-| Auto-update mechanism  | npm      | npm                | Native      |
-| Daemon lifecycle       | Manual   | Auto               | Native      |
-| UI integration         | ❌       | Browser            | Native      |
-| Best for               | Phase 4a | Phase 4b           | Phase 4c    |
+**Chosen approach:** Single all-in-one package with manual daemon control
+
+| Aspect                 | Decision                           |
+| ---------------------- | ---------------------------------- |
+| Package naming         | `agor-live` (everything bundled)   |
+| Package count          | 1 (no separate core/cli/daemon)    |
+| Installation           | `npm install -g agor-live`         |
+| Time to implement      | 2 weeks                            |
+| User setup complexity  | Medium (manual daemon start)       |
+| Total package size     | ~12MB                              |
+| Cross-platform support | ✅ (Node.js)                       |
+| Auto-update mechanism  | `npm update -g agor-live`          |
+| Daemon lifecycle       | Manual (explicit control)          |
+| UI integration         | Bundled, served from daemon at /ui |
+| Health check timeout   | 1 second (fast feedback)           |
+| Publishing complexity  | Low (1 package, 1 publish)         |
 
 ---
 
 ## Recommended Roadmap
 
-### Phase 4a: Quick npm Release (Q2 2025)
+### Phase 4: npm Release (Q2 2025)
 
-**Goal:** Get Agor on npm ASAP for early adopters
+**Goal:** Get Agor on npm as single all-in-one package
 
 **Deliverables:**
 
-- [ ] Publish `@agor/core` to npm
-- [ ] Publish `@agor/daemon` to npm
-- [ ] Publish `@agor/cli` to npm
+- [ ] Add health check with 1s timeout to CLI
+- [ ] Add daemon start/stop/status commands to CLI
+- [ ] Create `packages/agor-live/` directory
+- [ ] Write `build.sh` script that:
+  - Builds core, CLI, daemon, UI
+  - Copies all artifacts to `agor-live/dist/`
+- [ ] Create `bin/agor.js` and `bin/agor-daemon.js` entry points
+- [ ] Configure `agor-live/package.json` with bins, files, dependencies
+- [ ] Test local installation: `npm install -g ./packages/agor-live`
+- [ ] Publish `agor-live` to npm
 - [ ] Update README with npm install instructions
-- [ ] Document daemon setup separately
+- [ ] Add quickstart guide (install → daemon start → CLI usage)
 
 **Timeline:** 1-2 weeks
-
----
-
-### Phase 4b: Bundled Experience (Q3 2025)
-
-**Goal:** Single-package installation
-
-**Deliverables:**
-
-- [ ] Bundle daemon into CLI package
-- [ ] Implement auto-start daemon on CLI commands
-- [ ] Add `agor daemon` lifecycle commands
-- [ ] Publish `agor` meta-package
-- [ ] Update README with simplified instructions
-
-**Timeline:** 2-4 weeks
-
----
-
-### Phase 4c: Desktop Application (Q4 2025)
-
-**Goal:** Native app for end users
-
-**Deliverables:**
-
-- [ ] Choose framework (Tauri recommended)
-- [ ] Embed daemon as sidecar
-- [ ] Build native installers (macOS, Windows, Linux)
-- [ ] Add system tray integration
-- [ ] Publish to Homebrew, winget, apt
-
-**Timeline:** 6-8 weeks
 
 ---
 
@@ -683,25 +503,23 @@ prisma migrate dev             # Auto-starts Prisma Studio
 1. **Daemon port:** Hardcode 3030 or make configurable?
    - **Recommendation:** Hardcode 3030, add `--port` override flag
 
-2. **UI distribution:** Serve from daemon or separate package?
-   - **Recommendation:** Serve from daemon in Phase 4a-b, native in Phase 4c
+2. **Bundle strategy:** Copy built artifacts or use esbuild/webpack?
+   - **Recommendation:** Copy built artifacts (simpler, preserves sourcemaps)
 
-3. **Auto-update:** How to handle updates?
-   - **Recommendation:** Use `npm update -g agor` in Phase 4a-b, native auto-update in Phase 4c
+3. **Binary entry points:** How should bins reference bundled code?
+   - **Recommendation:** `bin/agor.js` → `require('../dist/cli/index.js')`
 
-4. **Multi-user:** How to handle multiple users on same machine?
+4. **Node_modules:** Bundle dependencies or list in package.json?
+   - **Recommendation:** List in package.json (let npm handle installation)
+
+5. **Multi-user:** How to handle multiple users on same machine?
    - **Recommendation:** Per-user database (`~/.agor/`), daemon runs per-user
-
-5. **Cloud sync:** When to enable cloud backend?
-   - **Recommendation:** Phase 5 (V2), after desktop app is stable
 
 ---
 
 ## References
 
 - [oclif plugins](https://oclif.io/docs/plugins)
-- [Tauri](https://tauri.app/)
-- [Electron Builder](https://www.electron.build/)
 - [Changesets](https://github.com/changesets/changesets)
 - [pm2](https://pm2.keymetrics.io/)
 - [Vercel CLI](https://vercel.com/docs/cli)

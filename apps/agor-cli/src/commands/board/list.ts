@@ -2,7 +2,8 @@
  * List all boards
  */
 
-import { createClient } from '@agor/core/api';
+import { createClient, isDaemonRunning } from '@agor/core/api';
+import { getDaemonUrl } from '@agor/core/config';
 import type { Board, BoardEntityObject } from '@agor/core/types';
 import { Command } from '@oclif/core';
 import chalk from 'chalk';
@@ -14,7 +15,28 @@ export default class BoardList extends Command {
   static override examples = ['<%= config.bin %> <%= command.id %>'];
 
   public async run(): Promise<void> {
-    const client = createClient();
+    // Check if daemon is running first (fast fail)
+    const daemonUrl = await getDaemonUrl();
+    const running = await isDaemonRunning(daemonUrl);
+
+    if (!running) {
+      this.log(
+        chalk.red('✗ Daemon not running') +
+          '\n\n' +
+          chalk.bold('To start the daemon:') +
+          '\n  ' +
+          chalk.cyan('cd apps/agor-daemon && pnpm dev') +
+          '\n\n' +
+          chalk.bold('To configure daemon URL:') +
+          '\n  ' +
+          chalk.cyan('agor config set daemon.url <url>') +
+          '\n  ' +
+          chalk.gray(`Current: ${daemonUrl}`)
+      );
+      this.exit(1);
+    }
+
+    const client = createClient(daemonUrl, true, { verbose: false });
 
     try {
       // Fetch boards
