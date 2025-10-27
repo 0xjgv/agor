@@ -485,9 +485,9 @@ const SessionCanvas = ({
   const commentNodes: Node[] = useMemo(() => {
     const nodes: Node[] = [];
 
-    // Filter to only spatial comments on this board (with position.absolute)
+    // Filter to only spatial comments on this board (with position.absolute) and not resolved
     const spatialComments = comments.filter(
-      c => c.position?.absolute && c.board_id === board?.board_id
+      c => c.position?.absolute && c.board_id === board?.board_id && !c.resolved
     );
 
     // Count replies for each thread root

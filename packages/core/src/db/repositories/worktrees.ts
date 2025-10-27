@@ -34,7 +34,6 @@ export class WorktreeRepository implements BaseRepository<Worktree, Partial<Work
       worktree_unique_id: row.worktree_unique_id,
       board_id: (row.board_id as UUID | null) ?? undefined, // Top-level column
       ...row.data,
-      sessions: (row.data.sessions || []) as UUID[],
     };
   }
 
@@ -67,7 +66,6 @@ export class WorktreeRepository implements BaseRepository<Worktree, Partial<Work
         pull_request_url: worktree.pull_request_url,
         notes: worktree.notes,
         environment_instance: worktree.environment_instance,
-        sessions: worktree.sessions || [],
         last_used: worktree.last_used ?? new Date(now).toISOString(),
         custom_context: worktree.custom_context,
       },
@@ -185,40 +183,5 @@ export class WorktreeRepository implements BaseRepository<Worktree, Partial<Work
       .limit(1);
 
     return row ? this.rowToWorktree(row) : null;
-  }
-
-  /**
-   * Add session to worktree's sessions array
-   */
-  async addSession(worktreeId: WorktreeID, sessionId: UUID): Promise<Worktree> {
-    const worktree = await this.findById(worktreeId);
-    if (!worktree) {
-      throw new EntityNotFoundError('Worktree', worktreeId);
-    }
-
-    // Add session if not already present
-    const sessions = worktree.sessions || [];
-    if (!sessions.includes(sessionId)) {
-      sessions.push(sessionId);
-    }
-
-    return this.update(worktreeId, {
-      sessions,
-      last_used: new Date().toISOString(),
-    });
-  }
-
-  /**
-   * Remove session from worktree's sessions array
-   */
-  async removeSession(worktreeId: WorktreeID, sessionId: UUID): Promise<Worktree> {
-    const worktree = await this.findById(worktreeId);
-    if (!worktree) {
-      throw new EntityNotFoundError('Worktree', worktreeId);
-    }
-
-    const sessions = (worktree.sessions || []).filter(id => id !== sessionId);
-
-    return this.update(worktreeId, { sessions });
   }
 }

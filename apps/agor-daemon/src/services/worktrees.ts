@@ -185,30 +185,6 @@ export class WorktreesService extends DrizzleService<Worktree, Partial<Worktree>
   }
 
   /**
-   * Custom method: Add session to worktree
-   */
-  async addSession(id: WorktreeID, sessionId: UUID, params?: WorktreeParams): Promise<Worktree> {
-    const worktree = await this.worktreeRepo.addSession(id, sessionId);
-
-    // Emit WebSocket event
-    this.emit?.('patched', worktree, params);
-
-    return worktree;
-  }
-
-  /**
-   * Custom method: Remove session from worktree
-   */
-  async removeSession(id: WorktreeID, sessionId: UUID, params?: WorktreeParams): Promise<Worktree> {
-    const worktree = await this.worktreeRepo.removeSession(id, sessionId);
-
-    // Emit WebSocket event
-    this.emit?.('patched', worktree, params);
-
-    return worktree;
-  }
-
-  /**
    * Custom method: Add worktree to board
    *
    * Phase 0: Sets board_id on worktree

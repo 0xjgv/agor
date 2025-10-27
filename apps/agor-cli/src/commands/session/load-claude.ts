@@ -135,11 +135,10 @@ export default class SessionLoadClaude extends Command {
         worktree_unique_id: 0, // Will be auto-assigned by service hook
         path: absoluteProjectDir,
         new_branch: false,
-        sessions: [],
         last_used: new Date().toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        created_by: 'cli-import',
+        created_by: 'cli-import' as UUID,
       })) as Worktree;
       this.log(`${chalk.green('✓')} Created worktree: ${chalk.cyan(worktreeName)}`);
 

@@ -8,7 +8,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import yaml from 'js-yaml';
-import type { AgorConfig, AgorContext, ContextKey, UnknownJson } from './types';
+import type { AgorConfig, UnknownJson } from './types';
 
 /**
  * Get Agor home directory (~/.agor)
@@ -80,7 +80,6 @@ export async function saveConfig(config: AgorConfig): Promise<void> {
  */
 export function getDefaultConfig(): AgorConfig {
   return {
-    context: {},
     defaults: {
       board: 'main',
       agent: 'claude-code',
@@ -101,66 +100,6 @@ export function getDefaultConfig(): AgorConfig {
       host: 'localhost',
     },
   };
-}
-
-/**
- * Get context value
- *
- * @param key - Context key to retrieve
- * @returns Value or undefined if not set
- */
-export async function getContext(key: ContextKey): Promise<string | undefined> {
-  const config = await loadConfig();
-  return config.context?.[key];
-}
-
-/**
- * Set context value
- *
- * @param key - Context key to set
- * @param value - Value to set
- */
-export async function setContext(key: ContextKey, value: string): Promise<void> {
-  const config = await loadConfig();
-
-  if (!config.context) {
-    config.context = {};
-  }
-
-  config.context[key] = value;
-
-  await saveConfig(config);
-}
-
-/**
- * Unset context value
- *
- * @param key - Context key to clear
- */
-export async function unsetContext(key: ContextKey): Promise<void> {
-  const config = await loadConfig();
-
-  if (config.context && key in config.context) {
-    delete config.context[key];
-    await saveConfig(config);
-  }
-}
-
-/**
- * Clear all context
- */
-export async function clearContext(): Promise<void> {
-  const config = await loadConfig();
-  config.context = {};
-  await saveConfig(config);
-}
-
-/**
- * Get all context values
- */
-export async function getAllContext(): Promise<AgorContext> {
-  const config = await loadConfig();
-  return config.context || {};
 }
 
 /**
@@ -225,26 +164,24 @@ export async function setConfigValue(key: string, value: string | boolean | numb
   const parts = key.split('.');
 
   if (parts.length === 1) {
-    // Top-level key (context key)
-    if (!config.context) {
-      config.context = {};
-    }
-    (config.context as UnknownJson)[parts[0]] = value;
+    // Top-level key - not supported (all config is nested)
+    throw new Error(
+      `Top-level config keys not supported. Use format: section.key (e.g., defaults.${parts[0]})`
+    );
+  }
+
+  // Nested key (e.g., "credentials.ANTHROPIC_API_KEY")
+  const section = parts[0];
+
+  if (!(config as UnknownJson)[section]) {
+    (config as UnknownJson)[section] = {};
+  }
+
+  // Only support one level of nesting
+  if (parts.length === 2) {
+    (config as UnknownJson)[section][parts[1]] = value;
   } else {
-    // Nested key (e.g., "credentials.ANTHROPIC_API_KEY")
-    const section = parts[0];
-    const _subKey = parts.slice(1).join('.');
-
-    if (!(config as UnknownJson)[section]) {
-      (config as UnknownJson)[section] = {};
-    }
-
-    // For now, only support one level of nesting
-    if (parts.length === 2) {
-      (config as UnknownJson)[section][parts[1]] = value;
-    } else {
-      throw new Error(`Nested keys beyond one level not supported: ${key}`);
-    }
+    throw new Error(`Nested keys beyond one level not supported: ${key}`);
   }
 
   await saveConfig(config);
@@ -260,11 +197,11 @@ export async function unsetConfigValue(key: string): Promise<void> {
   const parts = key.split('.');
 
   if (parts.length === 1) {
-    // Top-level key (context key)
-    if (config.context && parts[0] in config.context) {
-      delete (config.context as UnknownJson)[parts[0]];
-    }
-  } else if (parts.length === 2) {
+    // Top-level key - not supported
+    throw new Error(`Top-level config keys not supported. Use format: section.key`);
+  }
+
+  if (parts.length === 2) {
     const section = parts[0];
     const subKey = parts[1];
 

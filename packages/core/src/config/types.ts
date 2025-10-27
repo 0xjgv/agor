@@ -11,25 +11,6 @@
 export type UnknownJson = any;
 
 /**
- * Active CLI context (stateful)
- *
- * Values that change frequently during CLI usage.
- */
-export interface AgorContext {
-  /** Active board (slug, ID, or name) */
-  board?: string;
-
-  /** Active session (full UUID or short ID) */
-  session?: string;
-
-  /** Active repo reference (path | slug | slug:worktree) */
-  repo?: string;
-
-  /** Preferred agent for new sessions */
-  agent?: string;
-}
-
-/**
  * Global default values
  */
 export interface AgorDefaults {
@@ -106,9 +87,6 @@ export interface AgorCredentials {
  * Complete Agor configuration
  */
 export interface AgorConfig {
-  /** Active context (stateful CLI) */
-  context?: AgorContext;
-
   /** Global defaults */
   defaults?: AgorDefaults;
 
@@ -126,15 +104,9 @@ export interface AgorConfig {
 }
 
 /**
- * Valid context keys that can be set/get
- */
-export type ContextKey = keyof AgorContext;
-
-/**
  * Valid config keys (includes nested keys with dot notation)
  */
 export type ConfigKey =
-  | ContextKey
   | `defaults.${keyof AgorDefaults}`
   | `display.${keyof AgorDisplaySettings}`
   | `daemon.${keyof AgorDaemonSettings}`

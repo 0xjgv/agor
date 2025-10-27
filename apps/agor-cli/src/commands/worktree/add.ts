@@ -1,5 +1,5 @@
 /**
- * `agor repo worktree add <repo-slug> <name>` - Create a git worktree
+ * `agor worktree add <name>` - Create a git worktree
  *
  * Creates an isolated working directory for a specific branch.
  */
@@ -15,22 +15,18 @@ export default class WorktreeAdd extends Command {
 
   static examples = [
     // Case 1: Create new branch (worktree name = branch name)
-    '<%= config.bin %> <%= command.id %> superset feature-auth',
+    '<%= config.bin %> <%= command.id %> feature-auth --repo-id 01933e4a',
     // Case 2: Create new branch with different name
-    '<%= config.bin %> <%= command.id %> superset my-experiment --branch feature-x',
+    '<%= config.bin %> <%= command.id %> my-experiment --repo-id 01933e4a --branch feature-x',
     // Case 3: Checkout existing branch
-    '<%= config.bin %> <%= command.id %> superset fix-api --checkout',
+    '<%= config.bin %> <%= command.id %> fix-api --repo-id 01933e4a --checkout',
     // Case 4: Checkout specific ref
-    '<%= config.bin %> <%= command.id %> superset debug-session --ref abc123def',
+    '<%= config.bin %> <%= command.id %> debug-session --repo-id 01933e4a --ref abc123def',
     // Case 5: Create branch from specific base
-    '<%= config.bin %> <%= command.id %> superset feature-y --from develop',
+    '<%= config.bin %> <%= command.id %> feature-y --repo-id 01933e4a --from develop',
   ];
 
   static args = {
-    repoSlug: Args.string({
-      description: 'Repository slug',
-      required: true,
-    }),
     name: Args.string({
       description: 'Worktree name (becomes branch name if creating new)',
       required: true,
@@ -38,6 +34,10 @@ export default class WorktreeAdd extends Command {
   };
 
   static flags = {
+    'repo-id': Flags.string({
+      description: 'Repository ID',
+      required: true,
+    }),
     branch: Flags.string({
       char: 'b',
       description: 'Branch name (defaults to same as worktree name)',
@@ -78,19 +78,8 @@ export default class WorktreeAdd extends Command {
       const client = createClient(daemonUrl);
       const reposService = client.service('repos');
 
-      // Fetch repo by slug
-      const repos = await reposService.find({
-        query: { slug: args.repoSlug, $limit: 1 },
-      });
-
-      const reposList = Array.isArray(repos) ? repos : repos.data;
-      if (!reposList || reposList.length === 0) {
-        this.error(
-          `Repository '${args.repoSlug}' not found. Use ${chalk.cyan('agor repo list')} to see available repos.`
-        );
-      }
-
-      const repo = reposList[0] as Repo;
+      // Fetch repo by ID
+      const repo = (await reposService.get(flags['repo-id'])) as Repo;
 
       // Check if worktree already exists (query worktrees table)
       const worktreesService = client.service('worktrees');
@@ -110,7 +99,7 @@ export default class WorktreeAdd extends Command {
       this.log('');
       this.log(
         chalk.bold(
-          `Creating worktree ${chalk.cyan(args.name)} in repository ${chalk.cyan(args.repoSlug)}...`
+          `Creating worktree ${chalk.cyan(args.name)} in repository ${chalk.cyan(flags['repo-id'])}...`
         )
       );
       this.log('');
@@ -163,7 +152,7 @@ export default class WorktreeAdd extends Command {
       this.log(chalk.bold('Next steps:'));
       this.log(`  ${chalk.dim('cd')} ${newWorktree.path}`);
       this.log(
-        `  ${chalk.dim('or start session:')} ${chalk.cyan(`agor session start --repo ${args.repoSlug} --worktree ${args.name}`)}`
+        `  ${chalk.dim('or start session:')} ${chalk.cyan(`agor session start --repo ${flags['repo-id']} --worktree ${args.name}`)}`
       );
       this.log('');
 

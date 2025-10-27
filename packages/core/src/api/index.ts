@@ -15,6 +15,7 @@ import type {
   Session,
   Task,
   User,
+  Worktree,
 } from '@agor/core/types';
 import authentication from '@feathersjs/authentication-client';
 import type { Application, Paginated, Params } from '@feathersjs/feathers';
@@ -30,6 +31,7 @@ export interface ServiceTypes {
   tasks: Task;
   boards: Board;
   repos: Repo;
+  worktrees: Worktree;
   users: User;
   'mcp-servers': MCPServer;
   context: ContextFileListItem | ContextFileDetail; // GET /context returns list, GET /context/:path returns detail
@@ -142,6 +144,70 @@ export interface ReposService extends AgorService<Repo> {
 }
 
 /**
+ * Worktrees service with environment management
+ */
+export interface WorktreesService extends AgorService<Worktree> {
+  /**
+   * Find worktree by repo_id and name
+   */
+  findByRepoAndName(repoId: string, name: string, params?: Params): Promise<Worktree | null>;
+
+  /**
+   * Add session to worktree
+   */
+  addSession(id: string, sessionId: string, params?: Params): Promise<Worktree>;
+
+  /**
+   * Remove session from worktree
+   */
+  removeSession(id: string, sessionId: string, params?: Params): Promise<Worktree>;
+
+  /**
+   * Add worktree to board
+   */
+  addToBoard(id: string, boardId: string, params?: Params): Promise<Worktree>;
+
+  /**
+   * Remove worktree from board
+   */
+  removeFromBoard(id: string, params?: Params): Promise<Worktree>;
+
+  /**
+   * Update environment status
+   */
+  updateEnvironment(
+    id: string,
+    environmentUpdate: Partial<Worktree['environment_instance']>,
+    params?: Params
+  ): Promise<Worktree>;
+
+  /**
+   * Start worktree environment
+   */
+  startEnvironment(id: string, params?: Params): Promise<Worktree>;
+
+  /**
+   * Stop worktree environment
+   */
+  stopEnvironment(id: string, params?: Params): Promise<Worktree>;
+
+  /**
+   * Restart worktree environment
+   */
+  restartEnvironment(id: string, params?: Params): Promise<Worktree>;
+
+  /**
+   * Check environment health
+   */
+  checkHealth(id: string, params?: Params): Promise<Worktree>;
+
+  /**
+   * Recompute access URLs
+   */
+  recomputeAccessUrls(id: string, params?: Params): Promise<Worktree>;
+}
+
+/**
  * Agor client with socket.io connection exposed for lifecycle management
  */
 export interface AgorClient extends Omit<Application<ServiceTypes>, 'service'> {
@@ -152,6 +218,7 @@ export interface AgorClient extends Omit<Application<ServiceTypes>, 'service'> {
   service(path: 'tasks'): TasksService;
   service(path: 'messages'): MessagesService;
   service(path: 'repos'): ReposService;
+  service(path: 'worktrees'): WorktreesService;
 
   // Bulk operation endpoints
   service(path: 'messages/bulk'): MessagesService;

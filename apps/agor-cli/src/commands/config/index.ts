@@ -1,42 +1,23 @@
 /**
- * `agor config` - Show all configuration and active context
+ * `agor config` - Show all configuration
  */
 
-import { getConfigPath, getEffectiveConfig, loadConfig } from '@agor/core/config';
+import { getConfigPath, getDefaultConfig, loadConfig } from '@agor/core/config';
 import { Command } from '@oclif/core';
 import chalk from 'chalk';
 
 export default class ConfigIndex extends Command {
-  static description = 'Show current configuration and active context';
+  static description = 'Show current configuration';
 
   static examples = ['<%= config.bin %> <%= command.id %>'];
 
   async run(): Promise<void> {
     try {
       const config = await loadConfig();
-      const effective = await getEffectiveConfig(config);
+      const defaults = getDefaultConfig();
 
       this.log(chalk.bold('\nCurrent Configuration'));
       this.log(chalk.dim('─'.repeat(50)));
-
-      // Active Context
-      this.log(chalk.bold('\nActive Context:'));
-      if (effective.board) {
-        this.log(`  board:   ${chalk.cyan(effective.board)}`);
-      }
-      if (effective.session) {
-        this.log(`  session: ${chalk.cyan(effective.session)}`);
-      }
-      if (effective.repo) {
-        this.log(`  repo:    ${chalk.cyan(effective.repo)}`);
-      }
-      if (effective.agent) {
-        this.log(`  agent:   ${chalk.cyan(effective.agent)}`);
-      }
-
-      if (!effective.board && !effective.session && !effective.repo && !effective.agent) {
-        this.log(chalk.dim('  (no active context)'));
-      }
 
       // Global Defaults
       this.log(chalk.bold('\nGlobal Defaults:'));
@@ -72,8 +53,6 @@ export default class ConfigIndex extends Command {
       }
 
       // Daemon Settings (merge with defaults to show effective values)
-      const { getDefaultConfig } = await import('@agor/core/config');
-      const defaults = getDefaultConfig();
       const daemonConfig = { ...defaults.daemon, ...config.daemon };
 
       if (daemonConfig) {
@@ -109,9 +88,6 @@ export default class ConfigIndex extends Command {
       this.log(chalk.bold('\nAvailable Configuration Keys:'));
       this.log(chalk.dim('  Use `agor config set <key> <value>` to set any of these:'));
       this.log('');
-      this.log(chalk.cyan('  Context (temporary, cleared with `agor config clear`):'));
-      this.log('    board, session, repo, agent');
-      this.log('');
       this.log(chalk.cyan('  Defaults:'));
       this.log('    defaults.board, defaults.agent');
       this.log('');
@@ -122,7 +98,7 @@ export default class ConfigIndex extends Command {
       this.log('    credentials.ANTHROPIC_API_KEY');
       this.log('    credentials.OPENAI_API_KEY');
       this.log('    credentials.CURSOR_API_KEY');
-      this.log('    credentials.GOOGLE_API_KEY');
+      this.log('    credentials.GEMINI_API_KEY');
       this.log('');
       this.log(chalk.cyan('  Daemon:'));
       this.log('    daemon.port, daemon.host');

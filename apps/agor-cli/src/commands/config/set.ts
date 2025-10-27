@@ -10,17 +10,16 @@ export default class ConfigSet extends Command {
   static description = 'Set a configuration value';
 
   static examples = [
-    '<%= config.bin %> <%= command.id %> board experiments',
-    '<%= config.bin %> <%= command.id %> session 01933e4a',
-    '<%= config.bin %> <%= command.id %> repo anthropics/agor:main',
-    '<%= config.bin %> <%= command.id %> agent claude-code',
+    '<%= config.bin %> <%= command.id %> defaults.board experiments',
+    '<%= config.bin %> <%= command.id %> defaults.agent claude-code',
     '<%= config.bin %> <%= command.id %> credentials.ANTHROPIC_API_KEY sk-ant-...',
-    '<%= config.bin %> <%= command.id %> defaults.agent cursor',
+    '<%= config.bin %> <%= command.id %> daemon.port 4000',
   ];
 
   static args = {
     key: Args.string({
-      description: 'Configuration key (supports dot notation: credentials.ANTHROPIC_API_KEY)',
+      description:
+        'Configuration key in format: section.key (e.g., daemon.port, credentials.ANTHROPIC_API_KEY)',
       required: true,
     }),
     value: Args.string({

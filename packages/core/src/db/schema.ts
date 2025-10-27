@@ -344,8 +344,6 @@ export const worktrees = sqliteTable(
           logs?: string[];
         };
 
-        // Sessions using this worktree
-        sessions: string[]; // SessionID[]
         last_used: string; // ISO timestamp
 
         // Custom context for templates (accessible as {{custom.*}})

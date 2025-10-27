@@ -167,17 +167,6 @@ export interface Worktree {
   // ===== Sessions =====
 
   /**
-   * Sessions using this worktree
-   *
-   * Multiple sessions can work on same worktree over time.
-   * Useful for:
-   * - Continuing work across sessions
-   * - Collaboration (multiple users working on same worktree)
-   * - Fork/spawn relationships on same branch
-   */
-  sessions: SessionID[];
-
-  /**
    * Last time this worktree was used
    *
    * Updated when sessions start/complete.
