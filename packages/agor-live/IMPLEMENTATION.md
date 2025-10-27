@@ -13,6 +13,7 @@ The `agor-live` package bundles the entire Agor application (daemon, CLI, UI, an
 
 ```bash
 npm install -g agor-live
+agor init
 agor daemon start
 agor session list
 ```

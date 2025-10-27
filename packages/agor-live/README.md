@@ -13,15 +13,14 @@ npm install -g agor-live
 ## Quick Start
 
 ```bash
-# Start the daemon
+# 1. Initialize Agor (creates ~/.agor/ and database)
+agor init
+
+# 2. Start the daemon
 agor daemon start
 
-# Initialize / configure
-agor daemon init
-
-# Open UI in browser
+# 3. Open UI in browser
 agor ui open
-
 ```
 
 ## Features

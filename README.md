@@ -23,10 +23,13 @@ This installs two commands:
 ## Quick Start
 
 ```bash
-# Start the daemon (runs on http://localhost:3030)
+# 1. Initialize Agor (creates ~/.agor/ and database)
+agor init
+
+# 2. Start the daemon (runs on http://localhost:3030)
 agor daemon start
 
-# Open the web UI in your browser
+# 3. Open the web UI in your browser
 agor ui open
 
 # Or use the CLI

@@ -4,86 +4,24 @@ Get Agor running in under 2 minutes.
 
 ## Installation
 
-**Install globally via npm:**
-
 ```bash
 npm install -g agor-live
 ```
 
-This installs two commands:
-- `agor` - CLI for managing sessions, repos, and worktrees
-- `agor-daemon` - Background service with built-in web UI
-
 ## Quick Start
 
 ```bash
-# 1. Start the daemon
+# 1. Initialize (creates ~/.agor/ and database)
+agor init
+
+# 2. Start the daemon
 agor daemon start
 
-# 2. Open the web UI
+# 3. Open the UI
 agor ui open
-# (Opens browser to http://localhost:3030)
-
-# 3. Add your first repository
-agor repo add ~/my-project
-
-# 4. Create your first session
-agor session create
 ```
 
-That's it! You're ready to start orchestrating AI coding sessions.
-
-## What's Next?
-
-### Using the UI
-
-Visit **http://localhost:3030** to access the web interface:
-- **Board view** - Spatial canvas for organizing sessions and worktrees
-- **Session conversations** - Full message history with tool call visualization
-- **Worktree management** - Create isolated git worktrees for parallel work
-- **Real-time collaboration** - See teammates' cursors and presence
-
-### Using the CLI
-
-Common CLI commands:
-
-```bash
-# Repository management
-agor repo add ~/my-project
-agor repo list
-
-# Session management
-agor session create --worktree main
-agor session list
-agor session prompt <session-id> "Implement authentication"
-
-# Worktree management
-agor worktree list
-agor worktree create feature-auth
-
-# Daemon control
-agor daemon status
-agor daemon logs
-agor daemon stop
-```
-
-### Agent Configuration
-
-Configure your agentic tools (Claude Code, Codex, Gemini):
-
-1. Set API keys as environment variables:
-   ```bash
-   export ANTHROPIC_API_KEY="your-key"
-   export OPENAI_API_KEY="your-key"
-   export GOOGLE_API_KEY="your-key"
-   ```
-
-2. Start sessions with specific agents:
-   ```bash
-   agor session create --agent claude-code
-   agor session create --agent codex
-   agor session create --agent gemini
-   ```
+**That's it!** The UI will guide you through onboarding, adding repositories, and creating your first session.
 
 ## Troubleshooting
 

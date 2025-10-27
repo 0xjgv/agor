@@ -1,5 +1,5 @@
 {
-  "name": "Agor Playground (Recommended)",
+  "name": "Agor Playground (Recommended - Fast npm install)",
   "build": {
     "dockerfile": "playground/Dockerfile",
     "context": ".."
