@@ -50,3 +50,16 @@
 .dark ::-webkit-scrollbar-thumb:hover {
   background: var(--agor-teal);
 }
+
+/* Main content area - solid background over particles */
+.dark main {
+  background-color: #111111;
+  position: relative;
+  z-index: 1;
+}
+
+main {
+  background-color: #ffffff;
+  position: relative;
+  z-index: 1;
+}

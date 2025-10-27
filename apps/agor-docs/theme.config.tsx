@@ -88,6 +88,7 @@ const config: DocsThemeConfig = {
       system: 'System',
     }),
   },
+  defaultTheme: 'dark',
 };
 
 export default config;
