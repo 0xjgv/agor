@@ -64,45 +64,6 @@ agor open
 
 ---
 
-## What It Does
-
-- **Agent orchestration** - Run Claude Code, Codex, Gemini from one interface
-- **Git worktree management** - Isolated workspaces per session, no branch conflicts
-- **Real-time board** - Drag sessions around, organize by project/phase/zone
-- **Session tracking** - Every AI conversation is stored, searchable, forkable
-- **MCP integration** - Configure MCP servers once, use across all agents
-- **Multiplayer** - See teammates' sessions, share environments, async handoffs
-
----
-
-## Core Concepts
-
-**Sessions** - Container for agent interactions with git state, tasks, genealogy
-**Worktrees** - Git worktrees managed by Agor, isolated per session
-**Boards** - Spatial canvas for organizing sessions (like Trello for AI work)
-**Zones** - Areas on board that trigger templated prompts when sessions dropped
-**Tasks** - User prompts tracked as first-class work units
-
----
-
-## Architecture
-
-```
-Frontend (React + Ant Design)
-    ↓ WebSocket
-Daemon (FeathersJS)
-    ↓
-Database (LibSQL) + Git Worktrees
-    ↓
-Agent SDKs (Claude, Codex, Gemini)
-```
-
-**Stack:** FeathersJS, Drizzle ORM, LibSQL, React Flow, Ant Design
-
-See [Architecture Guide](https://mistercrunch.github.io/agor/guide/architecture) for details.
-
----
-
 ## Key Features
 
 ### 🧩 Agent Orchestration Layer
@@ -200,7 +161,59 @@ See [Architecture Guide](https://mistercrunch.github.io/agor/guide/architecture)
 
 ---
 
+## Architecture
+
+```mermaid
+graph TB
+    subgraph Clients
+        CLI["CLI (oclif)"]
+        UI["Web UI (React)"]
+        Desktop["Desktop (future)"]
+    end
+
+    Client["Feathers Client<br/>REST + WebSocket"]
+
+    subgraph "Agor Daemon"
+        Feathers["FeathersJS Server"]
+        MCP["MCP HTTP Endpoint<br/>/mcp?sessionToken=..."]
+        Services["Services<br/>Sessions, Tasks, Messages<br/>Boards, Worktrees, Repos"]
+        AgentSDKs["Agent SDKs<br/>Claude, Codex, Gemini"]
+        ORM["Drizzle ORM"]
+    end
+
+    subgraph Storage
+        DB[("LibSQL Database<br/>~/.agor/agor.db")]
+        Git["Git Worktrees<br/>~/.agor/worktrees/"]
+        Config["Config<br/>~/.agor/config.yaml"]
+    end
+
+    CLI --> Client
+    UI --> Client
+    Desktop -.-> Client
+
+    Client <-->|REST + WebSocket| Feathers
+
+    Feathers --> Services
+    Feathers --> MCP
+    MCP --> Services
+    Services --> ORM
+    Services --> AgentSDKs
+    AgentSDKs -.->|JSON-RPC 2.0| MCP
+
+    ORM --> DB
+    Services --> Git
+    Services --> Config
+```
+
+**[Full Architecture Guide →](https://mistercrunch.github.io/agor/guide/architecture)**
+
+---
+
 ## Development
+
+**[Development Guide →](https://mistercrunch.github.io/agor/guide/development)**
+
+Quick start:
 
 ```bash
 # Terminal 1: Daemon
@@ -210,14 +223,16 @@ cd apps/agor-daemon && pnpm dev  # :3030
 cd apps/agor-ui && pnpm dev      # :5173
 ```
 
-See [CLAUDE.md](CLAUDE.md) for dev workflow and [PROJECT.md](PROJECT.md) for roadmap.
-
 ---
 
 ## Roadmap
 
-- Match CLI-native features as SDKs evolve
-- Bring Your Own IDE (VSCode/Cursor remote connection)
-- Session forking UI with genealogy visualization
-- Automated reports after task completion
-- Context management system (modular markdown files)
+**[View roadmap on GitHub →](https://github.com/mistercrunch/agor/issues?q=is%3Aissue+state%3Aopen+label%3Aroadmap)**
+
+Highlights:
+
+- **Match CLI-Native Features** — SDKs are evolving rapidly and exposing more functionality. Push integrations deeper to match all key features available in the underlying CLIs
+- **Bring Your Own IDE** — Connect VSCode, Cursor, or any IDE directly to Agor-managed worktrees via SSH/Remote
+- **Session Forking UI** — Visual genealogy showing how work branched, merged, and evolved
+- **Automated Reports** — AI-generated summaries after task completion capturing outcomes and decisions
+- **Context Management System** — Modular markdown-based context files that compose into session-specific knowledge
