@@ -1,107 +1,61 @@
-# The Making of Agor: how the pieces clicked in under a month
+# Working Notes on Agor (still being built)
 
-This is not a product launch post. It’s the story of how a piece of software came to be—why it felt inevitable, what lined up, and how it got built fast. If you want the what, go to https://agor.live. This is the how.
+I didn’t set out to build a “platform.” I wanted to stop losing the thread across agent sessions and make it easier to see what was happening without asking.
 
-Once in a blue moon, stars line up and something new pops into existence with real potential to change how people work together. History is full of these convergence moments. Ideas and innovation aren’t giant leaps so much as key inflection points where prior art snaps into place. This is the short story of how Agor came to be—and how, pretty much as a single engineer, I was able to launch a pretty incredible open source project in under a month.
+## What I was trying to fix
 
-Quick intro: I’m Max (`@mistercrunch` on GitHub). A while back I created [Apache Airflow](https://github.com/apache/airflow) and [Apache Superset](https://github.com/apache/superset). Everyone in data knows Airflow. And everyone—period!—should know Superset. It’s an AMAZING open source project quietly taking over BI. Tableau/Looker-killer levels. It’s ready to take over the world → check it out.
+- Fork a context window out of a session without starting over.
+- Spawn sub‑sessions with a fresh window I could introspect and post‑prompt.
+- Keep a “session tree” so I could see how work branched.
+- Share more than code: sometimes the worktree, ideally the running environment.
+- Get visibility into how prompting actually happened, not just the final PR.
 
-I’ve worked in the open for a decade with, let’s say, varied success (womp womp). The main enemy has always been focus. Being a good maintainer is hard, and attention is a currency. You have to concentrate it for anything meaningful to grow.
+## Early ideas I kept around
 
-This one’s about how Agor happened, and I’m putting humility aside because I’m honestly a little shocked by how quickly it came together. Here’s what had to click for the software to click.
+- “Context nuggets” — a small graph of markdown notes you can cherry‑pick into sessions.
+- Lightweight session reports I can generate and attach as metadata.
+- If an agent touched a PR, inspect that conversation later and continue it with the same context window.
 
-## Understanding the problem space
+## Why a UI (from a CLI person)
 
-Nothing truly interesting gets built without deep intimacy with the problem. Since agentic coding crossed the “this is actually good” threshold, I’ve been all-in: 60+ hour weeks of trying tools, reading every SDK release, absorbing upgrade notes, watching the demos, feeling the rough edges.
+I live in vim and terminals, but I also build interactive UIs for a living. Terminals are great until you need to answer, right now:
 
-From the moment this got good, it was obvious SDLC would never be the same ([why: adopting Claude Code and the software economics singularity](https://preset.io/blog/adopting-claude-code-riding-the-software-economics-singularity/)). I told my team to drop everything, put every engineer/PM/designer on Claude Max Pro, and started doing frequent brown-bags to figure out how to channel this insanity. I wrote little tools (like [Claudette](https://preset.io/blog/introducing-claudette-cli-supercharge-your-apache-superset-development/)) to sand down friction and let my own workflow reshape around agents.
+- What did I prompt last?
+- Which branch was I on?
+- What was the commit at the time?
+- Did the agent sneak in another `--no-verify` twelve prompts ago?
 
-Very quickly I found myself spinning 5–6 parallel sessions, plate-spinning across models. I even grabbed a Mac Studio to remove compute bottlenecks, tried Codespaces, anything to remove friction. The superpower was real; the orchestration was not.
+A little product design surfaces the state you actually need while AI coding. Lists weren’t enough; location and history needed to be visible.
 
-## The cracks
+## The snap‑together week
 
-We’ve always shared code via git—great, but isolating. With agents, a new problem appeared: zero visibility into each other’s agentic sessions, and even worse at the environment level. I wrote Showtime to share Superset environments on PRs. That helped… but it’s still too slow at agent speed.
+- React Flow: I had a board up so quickly it’s not even funny. Seeing sessions spatially made me stop asking “where was I?” and start dragging work where it belonged.
+- Ant Design (x.ant.design): amazing stuff. I know it by heart; the agent knows it even better. Tables, modals, forms — shipped faster than felt fair.
+- FeathersJS: sensible services; REST + WebSocket out of the box; hooks model I could live with.
+- Swagger: it took me six minutes to hook it in and have live, interactive API docs.
+- Nextra: the docs website kind of wrote itself. Structure, theming, MDX — done.
+- WebSockets: “just worked” for the basics. Service events broadcast, the UI felt alive with minimal glue.
 
-Sharing environments is table stakes, but still feels like a still photograph of a dance. Watching screenshots of a TikTok group dance doesn’t work. We need to collaborate while the software basically writes itself.
+If you told me a year ago this would come together at this pace, I wouldn’t have believed you. I’m not sure I’d have believed an army could write this level of software in a month. Insanity. I’m honestly confused about the state of software engineering right now — in a good, disorienting way.
 
-The biggest waste? Handoffs and async. By the time QA or an acceptance-testing PM sees it, the clay’s already drying. The decisions happened upstream. We needed stakeholders close while features were literally emerging. But push/pull/build, Slack pings, broken envs, weird workflows—it’s all a mess.
+## Pieces that clicked
 
-## A place to make it all happen
+- Worktrees as the unit of work: less branch thrash; parallelism without stepping on toes.
+- Session trees: fork to parallelize, spawn to delegate; keep genealogy; don’t lose context.
+- SDK‑first orchestration: Claude Code, OpenAI, Gemini via SDKs; CLIs as adapters, not the core.
+- MCP self‑awareness: sessions that know where they are (board, worktree) and can nudge Agor (spawn, log, attach artifacts).
+- Light real‑time: presence, cursors, comments — just enough to keep context alive.
 
-Figma changed how designers work with each other and with stakeholders. Why not bring that collaboration pattern to SDLC? The building blocks were all sitting there: agentic tools, repos, git worktrees, build systems, Docker, and well-understood multiplayer patterns from other software.
+## Where I’m unsure (on purpose)
 
-Take the ingredients. Bake the cake.
+- How much to automate with zones before it gets noisy.
+- What “good” session reports look like months later (useful vs. another artifact).
+- The boundary between “bring your own editor” and adding more in‑UI affordances.
+- How much of the “context nuggets” idea should be manual vs. inferred.
 
-## The perfect storm
+## Now and later
 
-A lot had to line up for this to snap together:
+Agor is the right “now” solution for me and my team — at least for some things. It reduces friction between “what I’m doing,” “where it lives,” and “who can see it while it’s happening.” At this pace, I don’t know how long any of this shape stays relevant. That’s okay. I’ll keep adjusting the shape while the work (and the tools) evolve.
 
-- Models got good at coding: Try going back to GPT‑3.5 to write real code. Good luck. Sonnet 3.7 and the latest wave are legitimately AMAZING, easily surpassing what most humans can do in the stacks I use. Props to the folks doing the magic in the deep end—and to the funding and hardware ecosystems. It’s wild.
-- Agentic tooling matured: Earlier this year, “agent” went from demo to useful. Real loops. Real tools.
-- SDKs arrived: Without proper SDKs, you can’t repackage workflows. Suddenly, you can orchestrate, not just prompt.
-- Collaboration patterns are learned: Figma, Slack, Notion, etc., didn’t just build products—they trained the world how to collaborate.
-- The ecosystem is a cheat code: npm, PyPI—decades of compounding leverage. Modern software is collage. Agor is no different.
-
-## Key decisions made along the way
-
-- Board, not list: Make the 2D canvas the primary UX. Spatial memory, presence, and orchestration beat vertical feeds. You remember where things live; teammates see motion in real time.
-- Worktrees over branches: Isolate by feature, not by session. Forks copy conversation context only; they share the same filesystem. No “git branch explosion” per chat.
-- SDK-first integrations: Orchestrate Claude Code, Codex, Gemini via SDKs. Treat CLIs as optional adapters, not the core.
-- Zero‑config MCP: Session‑scoped token auto‑injected into `mcpServers.agor` on the same daemon. No extra process, no manual setup.
-- Environments as first‑class: Per‑worktree start/stop with unique ports from simple templates. Share a running env across sessions; avoid port roulette.
-- Fast UI primitives: Ant Design + React Flow. Ship the model before the paint job; save custom components for when they’re undeniably needed.
-- Zones as automation: Drag‑to‑trigger workflows powered by Handlebars templates with board/worktree/session/env context. No more copy‑pasting issue/PR links into prompts.
-- Async by default: Spawns don’t block parents. Reports are explicit (files/messages). Add callbacks later only if they clearly reduce friction.
-- Real‑time everywhere: Broadcast Feathers service events over WebSocket; optimistic UI; minimal polling.
-- Collage > reinvention: Use simple‑git, Drizzle, Socket.io, and friends. Spend calories on orchestration, not on rebuilding solved layers.
-- Bring your own editor: Don’t ship a heavy embedded editor. Connect VSCode/Cursor/etc. to running worktrees; meet people where they already work.
-- Scope guardrails: Fewer agents at first, deeper capability later. No “smart review” L2 until base flows proved stable and valuable.
-
-## The personal stack (aka why it moved fast)
-
-Putting humility aside for a minute:
-
-- Deep in the problem: I’ve been glued to this space since GPT‑3.5, trying everything, tracking every release.
-- Full-stack enough: Superset taught me UX, frontend infra, design systems, backend, DevOps. I’m not the best at any one thing—but I can keep agents on the road across all of it and pick the right libraries fast.
-- Architecture + modeling: ERDs, class modeling, component mental models. Systems thinking matters, especially now.
-- Prompt and context engineering: Not just words—structures, constraints, and state.
-- 25+ years of wide, deep-enough full-stakiness: Across languages, frameworks, infra. Useful scars.
-- Open source instincts: Projects don’t grow alone. I know what a community needs and what to defer.
-- Grit/obsession: People say there are only so many hours in a day. True. But when I’m obsessed, there are also many hours between 8pm and 2am. Not perfect optics, but obsession built my company—and this.
-
-## Using Agor to build Agor (dogfooding)
-
-By week three I could use Agor to build Agor, and something magic happens when you’re your own primary user. Early Airflow was the same—I inherited a handful of data marts at Airbnb and needed to fix a ton, fast. Dogfooding tightens loops:
-
-- Forking sessions: I’d fork a conversation to spin off tests, docs, or a quick spike without polluting the main context.
-- Spawning subsessions: Delegate focused research (“compare X vs Y, leave a summary in `/tmp/notes.md`”) without dragging parent context around.
-- Worktrees + environments: Each session mapped to isolated git worktrees with their own running dev servers. No branch thrash, no port collisions.
-- Multiplayer board: Real-time visibility—what’s active, what’s blocked, what’s moving. Async handoffs got 10x cleaner because the context lived with the work.
-
-## What surprised me
-
-- Speed compounds: The second or third week is where orchestration flips from “cool demo” to “wow we’re shipping.”
-- Parallelism is a mindset: Once you stop thinking in single-threaded CLI chats, you start to “fan out” everything.
-- Spatial memory matters: A board beats a list. You remember where things are. It changes how you think.
-
-## What I cut (on purpose)
-
-- Fancy UI early: Ant Design + React Flow got me 90% there. No bespoke art direction until the model is right.
-- Too many agents at once: Start with the strongest, add specialization only where it clearly pays.
-- Premature integrations: SDK first, then branch to CLIs if truly needed. Fewer moving parts, more leverage.
-
-## So what is Agor, in one breath?
-
-A multiplayer, spatial layer that coordinates agentic coding across tools and teams: real-time boards, session trees, zone-triggered workflows, isolated git worktrees with one-click environments, and the right glue to orchestrate Claude Code, Codex, Gemini, and friends. It’s the place where the work—and the context that created it—actually lives. The code is open at [github.com/mistercrunch/agor](https://github.com/mistercrunch/agor).
-
-## What’s next
-
-- Close the gap with native CLI features via SDKs
-- Smoother IDE “bring your own editor” flows
-- Better reporting (auto summaries, artifacts, outcomes)
-- More refined context management (composable, versioned)
-
-If you want the details, the docs are at https://agor.live. If you want to talk shop, the repo’s at https://github.com/mistercrunch/agor. If you’re building in this space, I want to hear from you.
-
-“git tracks code; Agor tracks the conversations that produced it.”
+If you try it, I’d love to hear where you lose the thread — and what you wish was visible exactly when you needed it.
 
