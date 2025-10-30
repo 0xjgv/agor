@@ -4,7 +4,7 @@
 
 import type { BoardObject, ZoneTriggerBehavior } from '@agor/core/types';
 import { Alert, Input, Modal, Select, theme } from 'antd';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 interface ZoneConfigModalProps {
   open: boolean;
@@ -30,10 +30,12 @@ export const ZoneConfigModal = ({
   const nameId = useId();
   const triggerBehaviorId = useId();
   const triggerTemplateId = useId();
+  const isInitializingRef = useRef(false);
 
-  // Reset form when modal opens
+  // Reset form when modal opens (prevent WebSocket updates from erasing user input)
   useEffect(() => {
-    if (open) {
+    if (open && !isInitializingRef.current) {
+      isInitializingRef.current = true;
       setName(zoneName);
       // Load existing trigger data if available
       if (zoneData.type === 'zone' && zoneData.trigger) {
@@ -43,6 +45,9 @@ export const ZoneConfigModal = ({
         setTriggerBehavior('show_picker');
         setTriggerTemplate('');
       }
+    } else if (!open) {
+      // Reset flag when modal closes
+      isInitializingRef.current = false;
     }
   }, [open, zoneName, zoneData]);
 
@@ -96,7 +101,7 @@ export const ZoneConfigModal = ({
         <Input
           id={nameId}
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={e => setName(e.target.value)}
           placeholder="Enter zone name..."
           size="large"
         />
@@ -144,7 +149,7 @@ export const ZoneConfigModal = ({
         <Input.TextArea
           id={triggerTemplateId}
           value={triggerTemplate}
-          onChange={(e) => setTriggerTemplate(e.target.value)}
+          onChange={e => setTriggerTemplate(e.target.value)}
           placeholder="Enter the prompt template that will be triggered when a worktree is dropped here..."
           rows={6}
         />
