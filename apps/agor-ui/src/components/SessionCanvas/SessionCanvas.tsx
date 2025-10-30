@@ -47,6 +47,9 @@ import WorktreeCard from '../WorktreeCard';
 import { CommentNode, ZoneNode } from './canvas/BoardObjectNodes';
 import { CursorNode } from './canvas/CursorNode';
 import { useBoardObjects } from './canvas/useBoardObjects';
+import { findIntersectingObjects } from './canvas/utils/collisionDetection';
+import { getWorktreeParentInfo, getZoneParentInfo } from './canvas/utils/commentUtils';
+import { getAbsoluteNodePosition } from './canvas/utils/nodePositionUtils';
 import { ZoneTriggerModal } from './canvas/ZoneTriggerModal';
 
 const { Paragraph } = Typography;
@@ -529,16 +532,17 @@ const SessionCanvas = ({
         position = { x: rel.offset_x, y: rel.offset_y };
 
         if (rel.parent_type === 'zone') {
-          // Parent is a zone - use zone's object ID as parentId
-          parentId = `zone-${rel.parent_id}`;
-          const zone = board?.objects?.[rel.parent_id];
-          parentLabel = zone?.type === 'zone' ? `📍 ${zone.label}` : undefined;
-          parentColor = zone?.type === 'zone' ? zone.color : undefined;
+          // Parent is a zone
+          const info = getZoneParentInfo(rel.parent_id, board);
+          parentId = info.parentId;
+          parentLabel = info.parentLabel;
+          parentColor = info.parentColor;
         } else if (rel.parent_type === 'worktree') {
-          // Parent is a worktree - use worktree node ID (no prefix)
-          parentId = rel.parent_id;
-          const worktree = worktrees.find(w => w.worktree_id === rel.parent_id);
-          parentLabel = worktree ? `🌳 ${worktree.name}` : undefined;
+          // Parent is a worktree
+          const info = getWorktreeParentInfo(rel.parent_id, worktrees);
+          parentId = info.parentId;
+          parentLabel = info.parentLabel;
+          parentColor = info.parentColor;
         }
       } else if (comment.position?.absolute) {
         // Free-floating comment - use absolute position
@@ -849,52 +853,11 @@ const SessionCanvas = ({
                 }
               }
 
-              // Helper: Calculate absolute position for a node (handles parent transforms)
-              const getAbsolutePosition = (node: Node): { x: number; y: number } => {
-                if (node.positionAbsolute) {
-                  return { x: node.positionAbsolute.x, y: node.positionAbsolute.y };
-                }
-
-                if (node.parentId) {
-                  // Node is child - calculate absolute position from parent
-                  const parentNode = currentNodes.find(n => n.id === node.parentId);
-                  if (parentNode) {
-                    const parentPos = getAbsolutePosition(parentNode); // Recursive for nested parents
-                    return {
-                      x: parentPos.x + node.position.x,
-                      y: parentPos.y + node.position.y,
-                    };
-                  }
-                }
-
-                // No parent or positionAbsolute - use position as-is
-                return { x: node.position.x, y: node.position.y };
-              };
-
-              // Manual point-in-rect collision detection using measured dimensions
-              const intersectingNodes = currentNodes.filter(node => {
-                if (node.type !== 'zone' && node.type !== 'worktreeNode') return false;
-                if (node.id === draggedNode.id) return false; // Don't intersect with self
-
-                // Use measured dimensions if available
-                const nodeWidth = node.measured?.width || node.width || 0;
-                const nodeHeight = node.measured?.height || node.height || 0;
-
-                // Get absolute position (accounting for parent transforms)
-                const { x: nodeX, y: nodeY } = getAbsolutePosition(node);
-
-                // Check if comment position is within node bounds
-                return (
-                  absolutePosition.x >= nodeX &&
-                  absolutePosition.x <= nodeX + nodeWidth &&
-                  absolutePosition.y >= nodeY &&
-                  absolutePosition.y <= nodeY + nodeHeight
-                );
-              });
-
-              // Prioritize worktrees over zones (worktrees are rendered on top)
-              const worktreeNode = intersectingNodes.find(n => n.type === 'worktreeNode');
-              const zoneNode = intersectingNodes.find(n => n.type === 'zone');
+              // Find zones/worktrees that the comment intersects with
+              const { worktreeNode, zoneNode } = findIntersectingObjects(
+                absolutePosition,
+                currentNodes
+              );
 
               let parentId: string | undefined;
               let parentType: 'zone' | 'worktree' | undefined;
@@ -1054,28 +1017,6 @@ const SessionCanvas = ({
             await batchUpdateObjectPositions(zoneUpdates);
           }
 
-          // Helper: Calculate absolute position for a node (handles parent transforms)
-          const getAbsolutePositionForUpdate = (node: Node): { x: number; y: number } => {
-            if (node.positionAbsolute) {
-              return { x: node.positionAbsolute.x, y: node.positionAbsolute.y };
-            }
-
-            if (node.parentId) {
-              // Node is child - calculate absolute position from parent
-              const parentNode = currentNodes.find(n => n.id === node.parentId);
-              if (parentNode) {
-                const parentPos = getAbsolutePositionForUpdate(parentNode); // Recursive for nested parents
-                return {
-                  x: parentPos.x + node.position.x,
-                  y: parentPos.y + node.position.y,
-                };
-              }
-            }
-
-            // No parent or positionAbsolute - use position as-is
-            return { x: node.position.x, y: node.position.y };
-          };
-
           // Update comment positions
           for (const { comment_id, position, parentId, parentType } of commentUpdates) {
             // Get the parent's position to calculate relative offset
@@ -1085,7 +1026,7 @@ const SessionCanvas = ({
               // Comment pinned to zone - find zone node for CURRENT position
               const zoneNode = currentNodes.find(n => n.id === `zone-${parentId}`);
               if (zoneNode) {
-                const zoneAbsPos = getAbsolutePositionForUpdate(zoneNode);
+                const zoneAbsPos = getAbsoluteNodePosition(zoneNode, currentNodes);
                 commentData.position = {
                   relative: {
                     parent_id: parentId,
@@ -1106,7 +1047,7 @@ const SessionCanvas = ({
               // Comment pinned to worktree - find worktree node for position
               const worktreeNode = currentNodes.find(n => n.id === parentId); // No prefix for worktree IDs
               if (worktreeNode) {
-                const worktreeAbsPos = getAbsolutePositionForUpdate(worktreeNode);
+                const worktreeAbsPos = getAbsoluteNodePosition(worktreeNode, currentNodes);
                 commentData.worktree_id = parentId;
                 commentData.position = {
                   relative: {
@@ -1312,97 +1253,8 @@ const SessionCanvas = ({
       // Get all current nodes with their measured dimensions
       const currentNodes = reactFlowInstanceRef.current?.getNodes() || [];
 
-      // Helper: Calculate absolute position for a node (handles parent transforms)
-      const getAbsolutePosition = (node: Node): { x: number; y: number } => {
-        if (node.positionAbsolute) {
-          return { x: node.positionAbsolute.x, y: node.positionAbsolute.y };
-        }
-
-        if (node.parentId) {
-          // Node is child - calculate absolute position from parent
-          const parentNode = currentNodes.find(n => n.id === node.parentId);
-          if (parentNode) {
-            const parentPos = getAbsolutePosition(parentNode); // Recursive for nested parents
-            return {
-              x: parentPos.x + node.position.x,
-              y: parentPos.y + node.position.y,
-            };
-          }
-        }
-
-        // No parent or positionAbsolute - use position as-is
-        return { x: node.position.x, y: node.position.y };
-      };
-
-      // Manual point-in-rect collision detection using measured dimensions
-      const intersectingNodes = currentNodes.filter(node => {
-        if (node.type !== 'zone' && node.type !== 'worktreeNode') return false;
-
-        // Use measured dimensions if available, otherwise fall back to width/height
-        const nodeWidth = node.measured?.width || node.width || 0;
-        const nodeHeight = node.measured?.height || node.height || 0;
-
-        // Get absolute position (accounting for parent transforms)
-        const { x: nodeX, y: nodeY } = getAbsolutePosition(node);
-
-        // Check if comment position is within node bounds
-        return (
-          position.x >= nodeX &&
-          position.x <= nodeX + nodeWidth &&
-          position.y >= nodeY &&
-          position.y <= nodeY + nodeHeight
-        );
-      });
-
-      // Detailed logging for debugging
-      const worktreeNodes = currentNodes.filter(n => n.type === 'worktreeNode');
-      const zoneNodes = currentNodes.filter(n => n.type === 'zone');
-
-      // Prioritize worktrees over zones (worktrees are rendered on top)
-      const worktreeNode = intersectingNodes.find(n => n.type === 'worktreeNode');
-      const zoneNode = intersectingNodes.find(n => n.type === 'zone');
-
-      console.log('🔍 Collision detection:', {
-        commentPosition: position,
-        worktreeCount: worktreeNodes.length,
-        zoneCount: zoneNodes.length,
-        intersectingCount: intersectingNodes.length,
-        worktrees: worktreeNodes.map(n => {
-          const width = n.measured?.width || n.width || 0;
-          const height = n.measured?.height || n.height || 0;
-          const { x, y } = getAbsolutePosition(n);
-          const isInside =
-            position.x >= x &&
-            position.x <= x + width &&
-            position.y >= y &&
-            position.y <= y + height;
-          return {
-            id: n.id.substring(0, 12) + '...',
-            type: n.type,
-            parentId: n.parentId,
-            position: n.position,
-            positionAbsolute: n.positionAbsolute,
-            width: n.width,
-            height: n.height,
-            measured: n.measured,
-            calculatedBounds: { x, y, width, height },
-            isInside,
-            isInIntersecting: intersectingNodes.includes(n),
-          };
-        }),
-        zones: zoneNodes.map(n => ({
-          id: n.id,
-          type: n.type,
-          position: n.position,
-          width: n.width,
-          height: n.height,
-        })),
-        intersectingNodes: intersectingNodes.map(n => ({
-          id: n.id.substring(0, 12) + '...',
-          type: n.type,
-        })),
-        selectedNode: worktreeNode ? 'worktree' : zoneNode ? 'zone' : 'none',
-      });
+      // Find zones/worktrees that the comment intersects with
+      const { worktreeNode, zoneNode } = findIntersectingObjects(position, currentNodes);
 
       // Prepare comment data based on placement target
       const commentData: BoardCommentCreate = {
