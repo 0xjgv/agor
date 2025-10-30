@@ -76,7 +76,7 @@ agor open
 
 - Real-time collaboration with **cursor broadcasting** and **facepiles**.
 - Sessions live on a **dynamic board** — cluster by project, phase, or purpose.
-- **Threaded comments** directly on the board with spatial pins (Figma-style).
+- **Scoped/spatial comments** pinned to boards, zones, or worktrees (Figma-style).
 - **Emoji reactions** for quick feedback; resolve threads when decisions are made.
 
 ### 🌲 Session Trees — Fork, Spawn, Coordinate
