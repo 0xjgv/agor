@@ -1,5 +1,6 @@
 {
   "name": "Agor Playground (Recommended - Fast npm install)",
+  // Cache bust: 2025-10-29 - turbo.json typecheck cache disabled
   "build": {
     "dockerfile": "playground/Dockerfile",
     "context": "..",
