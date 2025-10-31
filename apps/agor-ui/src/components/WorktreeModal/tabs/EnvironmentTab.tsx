@@ -37,6 +37,10 @@ import {
   theme,
 } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
+import {
+  getEnvironmentState,
+  getEnvironmentStateDescription,
+} from '../../../utils/environmentState';
 
 const { Paragraph } = Typography;
 const { TextArea } = Input;
@@ -354,23 +358,48 @@ export const EnvironmentTab: React.FC<EnvironmentTabProps> = ({
   const healthPreview = healthCheckUrl ? renderPreview(healthCheckUrl) : null;
   const appUrlPreview = appUrl ? renderPreview(appUrl) : null;
 
-  // Helper to get status badge (text-only, no colored dot)
+  // Get inferred state by combining runtime status + health check
+  const inferredState = getEnvironmentState(worktree.environment_instance);
+
+  // Helper to get status badge showing inferred state
   const getStatusBadge = () => {
-    switch (envStatus) {
+    const stateText = getEnvironmentStateDescription(inferredState);
+
+    switch (inferredState) {
+      case 'healthy':
+        return (
+          <Typography.Text strong style={{ color: token.colorSuccess }}>
+            {stateText}
+          </Typography.Text>
+        );
+      case 'unhealthy':
+        return (
+          <Typography.Text strong style={{ color: token.colorError }}>
+            {stateText}
+          </Typography.Text>
+        );
       case 'running':
-        return <Typography.Text>Running</Typography.Text>;
+        return (
+          <Typography.Text strong style={{ color: token.colorInfo }}>
+            {stateText}
+          </Typography.Text>
+        );
       case 'starting':
-        return <Typography.Text>Starting...</Typography.Text>;
       case 'stopping':
-        return <Typography.Text type="warning">Stopping...</Typography.Text>;
+        return <Typography.Text strong>{stateText}</Typography.Text>;
       case 'error':
-        return <Typography.Text type="danger">Error</Typography.Text>;
+        return (
+          <Typography.Text strong type="danger">
+            {stateText}
+          </Typography.Text>
+        );
+      case 'stopped':
       default:
-        return <Typography.Text type="secondary">Stopped</Typography.Text>;
+        return <Typography.Text type="secondary">{stateText}</Typography.Text>;
     }
   };
 
-  // Helper to get health badge
+  // Helper to get health badge icon (detailed view)
   const getHealthBadge = () => {
     if (!lastHealthCheck) return null;
 

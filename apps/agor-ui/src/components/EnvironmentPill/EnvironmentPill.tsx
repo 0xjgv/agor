@@ -1,6 +1,7 @@
 import type { Repo, Worktree } from '@agor/core/types';
 import {
   CheckCircleOutlined,
+  CloseCircleOutlined,
   EditOutlined,
   GlobalOutlined,
   LoadingOutlined,
@@ -9,6 +10,7 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import { Button, Space, Tag, Tooltip, theme } from 'antd';
+import { type EnvironmentInferredState, getEnvironmentState } from '../../utils/environmentState';
 
 interface EnvironmentPillProps {
   repo: Repo; // Need repo for environment_config
@@ -55,21 +57,27 @@ export function EnvironmentPill({
     );
   }
 
-  // Case 2 & 3: Config exists - show status
+  // Infer environment state by combining runtime status + health check
+  const inferredState = getEnvironmentState(env);
+
+  // Case 2 & 3: Config exists - show status with health awareness
   const getStatusIcon = () => {
-    if (!env || env.status === 'stopped') {
-      return <StopOutlined style={{ color: '#8c8c8c', fontSize: 12 }} />;
-    }
-    switch (env.status) {
-      case 'running':
-        return <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 12 }} />;
-      case 'error':
-        return <WarningOutlined style={{ color: '#ff4d4f', fontSize: 12 }} />;
+    switch (inferredState) {
+      case 'stopped':
+        return <StopOutlined style={{ color: token.colorTextDisabled, fontSize: 12 }} />;
       case 'starting':
       case 'stopping':
         return <LoadingOutlined style={{ fontSize: 12 }} />;
+      case 'healthy':
+        return <CheckCircleOutlined style={{ color: token.colorSuccess, fontSize: 12 }} />;
+      case 'unhealthy':
+        return <WarningOutlined style={{ color: token.colorWarning, fontSize: 12 }} />;
+      case 'running':
+        return <CheckCircleOutlined style={{ color: token.colorInfo, fontSize: 12 }} />;
+      case 'error':
+        return <CloseCircleOutlined style={{ color: token.colorError, fontSize: 12 }} />;
       default:
-        return <StopOutlined style={{ color: '#8c8c8c', fontSize: 12 }} />;
+        return <StopOutlined style={{ color: token.colorTextDisabled, fontSize: 12 }} />;
     }
   };
 
@@ -85,39 +93,57 @@ export function EnvironmentPill({
   const startDisabled = !hasConfig || !onStartEnvironment || isProcessing || isRunning;
   const stopDisabled = !hasConfig || !onStopEnvironment || isProcessing || !canStop;
 
-  // Build helpful tooltip based on state
+  // Build helpful tooltip based on inferred state
   const getTooltipText = () => {
     if (!hasConfig) {
       return 'Click to configure environment';
     }
 
-    switch (status) {
+    const healthCheck = env?.last_health_check;
+    const healthMessage = healthCheck?.message ? ` - ${healthCheck.message}` : '';
+
+    switch (inferredState) {
+      case 'healthy':
+        return environmentUrl
+          ? `Healthy - ${environmentUrl}${healthMessage}`
+          : `Healthy${healthMessage}`;
+      case 'unhealthy':
+        return environmentUrl
+          ? `Unhealthy - ${environmentUrl}${healthMessage}`
+          : `Unhealthy - check failed${healthMessage}`;
       case 'running':
         return environmentUrl
-          ? `Running - ${environmentUrl} - click to open`
-          : 'Running - click to configure';
+          ? `Running - ${environmentUrl} (health check not configured)`
+          : 'Running (health check not configured)';
       case 'starting':
         return environmentUrl ? `Starting... - ${environmentUrl}` : 'Starting...';
+      case 'stopping':
+        return 'Stopping...';
       case 'error':
-        return 'Environment error - click to configure';
+        return 'Failed to start - click to configure';
+      case 'stopped':
       default:
         return 'Stopped - click to configure';
     }
   };
 
-  // Determine color based on status
+  // Determine color based on inferred state
   const getColor = () => {
-    if (!env || env.status === 'stopped') return 'default';
-    switch (env.status) {
+    switch (inferredState) {
+      case 'healthy':
+        return 'green'; // Green for healthy
+      case 'unhealthy':
+        return 'orange'; // Orange for unhealthy
       case 'running':
-        return 'geekblue';
-      case 'error':
-        return 'red';
+        return 'blue'; // Blue for running without health check
       case 'starting':
       case 'stopping':
-        return 'blue';
+        return 'blue'; // Blue for transitioning
+      case 'error':
+        return 'red'; // Red for errors
+      case 'stopped':
       default:
-        return 'default';
+        return 'default'; // Gray for stopped
     }
   };
 
