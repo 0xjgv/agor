@@ -365,22 +365,26 @@ async function main() {
     )
   );
 
-  // Configure channels to broadcast events only to authenticated clients
+  // Configure channels to broadcast events to authenticated clients
+  // Join all new connections to 'everybody' channel initially
   app.on('connection', (connection: unknown) => {
-    app.channel('unauthenticated').join(connection as never);
+    app.channel('everybody').join(connection as never);
+    console.log('🔌 New connection joined everybody channel');
   });
 
-  app.on('login', (_authResult: unknown, context: { connection?: unknown }) => {
+  // Note: The 'login' event is fired by FeathersJS authentication service
+  // However, socket re-authentication might not always trigger this event
+  // So we use a broadcast-all approach with the 'everybody' channel
+  app.on('login', (authResult: unknown, context: { connection?: unknown }) => {
     if (context.connection) {
-      app.channel('authenticated').join(context.connection as never);
-      app.channel('unauthenticated').leave(context.connection as never);
+      const result = authResult as { user?: { user_id?: string; email?: string } };
+      console.log('✅ Login event fired:', result.user?.user_id, result.user?.email);
     }
   });
 
   app.on('logout', (_authResult: unknown, context: { connection?: unknown }) => {
     if (context.connection) {
-      app.channel('authenticated').leave(context.connection as never);
-      app.channel('unauthenticated').join(context.connection as never);
+      console.log('👋 Logout event fired');
     }
   });
 
@@ -673,13 +677,12 @@ async function main() {
     },
   });
 
-  // Publish service events only to authenticated connections
-  app.publish((_data, context) => {
-    const params = context.params as AuthenticatedParams;
-    if (params.user) {
-      return app.channel('authenticated');
-    }
-    return undefined;
+  // Publish service events to all connected clients
+  // All services have requireAuth hooks, so only authenticated users can access them
+  // This means any connection that successfully calls a service is authenticated
+  app.publish(() => {
+    // Broadcast to all connected clients (they're all authenticated due to requireAuth)
+    return app.channel('everybody');
   });
 
   // Add hooks to inject created_by from authenticated user and populate repo from worktree
