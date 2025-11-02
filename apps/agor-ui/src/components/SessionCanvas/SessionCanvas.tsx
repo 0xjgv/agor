@@ -559,17 +559,35 @@ const SessionCanvas = ({
         position = { x: rel.offset_x, y: rel.offset_y };
 
         if (rel.parent_type === 'zone') {
-          // Parent is a zone
-          const info = getZoneParentInfo(rel.parent_id, board ?? undefined);
-          parentId = info.parentId;
-          parentLabel = info.parentLabel;
-          parentColor = info.parentColor;
+          // Parent is a zone - validate zone exists
+          const zone = board?.objects?.[rel.parent_id];
+          if (zone?.type === 'zone') {
+            const info = getZoneParentInfo(rel.parent_id, board ?? undefined);
+            parentId = info.parentId;
+            parentLabel = info.parentLabel;
+            parentColor = info.parentColor;
+          } else {
+            // Zone was deleted - treat as free-floating
+            position = comment.position?.absolute ?? { x: 0, y: 0 };
+            parentId = undefined;
+            parentLabel = undefined;
+            parentColor = undefined;
+          }
         } else if (rel.parent_type === 'worktree') {
-          // Parent is a worktree
-          const info = getWorktreeParentInfo(rel.parent_id, worktrees);
-          parentId = info.parentId;
-          parentLabel = info.parentLabel;
-          parentColor = info.parentColor;
+          // Parent is a worktree - validate worktree exists
+          const worktree = worktrees.find(w => w.worktree_id === rel.parent_id);
+          if (worktree) {
+            const info = getWorktreeParentInfo(rel.parent_id, worktrees);
+            parentId = info.parentId;
+            parentLabel = info.parentLabel;
+            parentColor = info.parentColor;
+          } else {
+            // Worktree was deleted - treat as free-floating
+            position = comment.position?.absolute ?? { x: 0, y: 0 };
+            parentId = undefined;
+            parentLabel = undefined;
+            parentColor = undefined;
+          }
         }
       } else if (comment.position?.absolute) {
         // Free-floating comment - use absolute position
