@@ -33,7 +33,7 @@ export class WorktreeRepository implements BaseRepository<Worktree, Partial<Work
       ref: row.ref,
       worktree_unique_id: row.worktree_unique_id,
       board_id: (row.board_id as UUID | null) ?? undefined, // Top-level column
-      schedule_enabled: row.schedule_enabled ?? false,
+      schedule_enabled: Boolean(row.schedule_enabled), // Convert SQLite integer (0/1) to boolean
       schedule_cron: row.schedule_cron ?? undefined,
       schedule_last_triggered_at: row.schedule_last_triggered_at ?? undefined,
       schedule_next_run_at: row.schedule_next_run_at ?? undefined,

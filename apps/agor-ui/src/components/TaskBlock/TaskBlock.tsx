@@ -42,6 +42,7 @@ import {
   GitStatePill,
   MessageCountPill,
   ModelPill,
+  ScheduledRunPill,
   TimerPill,
   TokenCountPill,
   ToolCountPill,
@@ -75,6 +76,8 @@ interface TaskBlockProps {
     allow: boolean,
     scope: PermissionScope
   ) => void;
+  scheduledFromWorktree?: boolean;
+  scheduledRunAt?: number;
 }
 
 /**
@@ -261,6 +264,8 @@ export const TaskBlock = React.memo<TaskBlockProps>(
     onExpandChange,
     sessionId,
     onPermissionDecision,
+    scheduledFromWorktree,
+    scheduledRunAt,
   }) => {
     const { token } = theme.useToken();
 
@@ -366,6 +371,9 @@ export const TaskBlock = React.memo<TaskBlockProps>(
               durationMs={task.duration_ms}
               tooltip="Task runtime"
             />
+            {scheduledFromWorktree && scheduledRunAt && (
+              <ScheduledRunPill scheduledRunAt={scheduledRunAt} />
+            )}
             {task.created_by && (
               <CreatedByTag
                 createdBy={task.created_by}

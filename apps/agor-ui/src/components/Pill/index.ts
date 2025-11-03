@@ -14,6 +14,7 @@ export {
   PullRequestPill,
   RepoPill,
   ReportPill,
+  ScheduledRunPill,
   SessionIdPill,
   SpawnPill,
   StatusPill,

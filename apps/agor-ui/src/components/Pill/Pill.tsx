@@ -3,6 +3,7 @@ import {
   ApartmentOutlined,
   BranchesOutlined,
   CheckCircleOutlined,
+  ClockCircleOutlined,
   CloseCircleOutlined,
   CodeOutlined,
   CopyOutlined,
@@ -545,5 +546,31 @@ export const PullRequestPill: React.FC<PullRequestPillProps> = ({ prUrl, prNumbe
     >
       PR: {displayText}
     </Tag>
+  );
+};
+
+interface ScheduledRunPillProps extends BasePillProps {
+  scheduledRunAt: number;
+}
+
+export const ScheduledRunPill: React.FC<ScheduledRunPillProps> = ({ scheduledRunAt, style }) => {
+  // Format timestamp for display
+  const runDate = new Date(scheduledRunAt);
+  const displayTime = runDate.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+
+  // Build detailed tooltip
+  const tooltip = `Scheduled run at ${runDate.toLocaleString('en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'medium',
+  })}\nRun ID: ${scheduledRunAt}`;
+
+  return (
+    <Pill icon={<ClockCircleOutlined />} color={PILL_COLORS.processing} tooltip={tooltip}>
+      {displayTime}
+    </Pill>
   );
 };

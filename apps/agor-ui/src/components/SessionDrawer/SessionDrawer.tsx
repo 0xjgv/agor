@@ -599,6 +599,8 @@ const SessionDrawer = ({
           currentUserId={currentUserId}
           onScrollRef={setScrollToBottom}
           onPermissionDecision={onPermissionDecision}
+          scheduledFromWorktree={session.scheduled_from_worktree}
+          scheduledRunAt={session.scheduled_run_at}
         />
       </div>
 

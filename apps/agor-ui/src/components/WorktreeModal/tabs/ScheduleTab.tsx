@@ -128,12 +128,21 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
     }
   };
 
+  // Get current form values to detect changes
+  const formValues = form.getFieldsValue();
+
   const hasChanges =
     scheduleEnabled !== (worktree.schedule_enabled || false) ||
     cronExpression !== (worktree.schedule_cron || '0 0 * * *') ||
     agenticTool !== (worktree.schedule?.agentic_tool || 'claude-code') ||
     retention !== (worktree.schedule?.retention || 5) ||
-    promptTemplate !== (worktree.schedule?.prompt_template || '');
+    promptTemplate !== (worktree.schedule?.prompt_template || '') ||
+    formValues.permissionMode !==
+      (worktree.schedule?.permission_mode ||
+        getDefaultPermissionMode(agenticTool as AgenticToolName)) ||
+    JSON.stringify(formValues.modelConfig) !== JSON.stringify(worktree.schedule?.model_config) ||
+    JSON.stringify(formValues.mcpServerIds) !==
+      JSON.stringify(worktree.schedule?.mcp_server_ids || []);
 
   return (
     <div style={{ padding: '24px' }}>
@@ -152,8 +161,7 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
             </Space>
             {scheduleEnabled && (
               <Alert
-                message="Schedule Active"
-                description="The scheduler will automatically create new sessions based on the configuration below."
+                message="The scheduler will automatically create new sessions based on the configuration below."
                 type="success"
                 showIcon
                 icon={<ClockCircleOutlined />}

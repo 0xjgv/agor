@@ -65,6 +65,16 @@ export interface ConversationViewProps {
     allow: boolean,
     scope: PermissionScope
   ) => void;
+
+  /**
+   * Whether this session was created by the scheduler
+   */
+  scheduledFromWorktree?: boolean;
+
+  /**
+   * Unix timestamp (ms) of when the session was scheduled to run
+   */
+  scheduledRunAt?: number;
 }
 
 export const ConversationView = React.memo<ConversationViewProps>(
@@ -77,6 +87,8 @@ export const ConversationView = React.memo<ConversationViewProps>(
     currentUserId,
     onScrollRef,
     onPermissionDecision,
+    scheduledFromWorktree,
+    scheduledRunAt,
   }) => {
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -206,6 +218,8 @@ export const ConversationView = React.memo<ConversationViewProps>(
             onExpandChange={expanded => handleTaskExpandChange(task.task_id, expanded)}
             sessionId={sessionId}
             onPermissionDecision={onPermissionDecision}
+            scheduledFromWorktree={scheduledFromWorktree}
+            scheduledRunAt={scheduledRunAt}
           />
         ))}
       </div>
