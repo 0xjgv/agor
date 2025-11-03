@@ -15,7 +15,7 @@ import type {
 } from '@agor/core/types';
 import { PermissionScope } from '@agor/core/types';
 import { Layout, message } from 'antd';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { usePresence } from '../../hooks/usePresence';
 import type { AgenticToolOption } from '../../types';
 import { AppHeader } from '../AppHeader';
@@ -154,9 +154,6 @@ export const App: React.FC<AppProps> = ({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsActiveTab, setSettingsActiveTab] = useState<string>('boards');
 
-  // Per-session prompt drafts (persists across session switches)
-  const [promptDrafts, setPromptDrafts] = useState<Map<string, string>>(new Map());
-
   // Handle external settings tab control (e.g., from welcome modal)
   const effectiveSettingsOpen = settingsOpen || !!openSettingsTab;
   const effectiveSettingsTab = openSettingsTab || settingsActiveTab;
@@ -255,28 +252,6 @@ export const App: React.FC<AppProps> = ({
     setSelectedSessionId(sessionId);
   };
 
-  // Update draft for a specific session
-  const handleUpdateDraft = (sessionId: string, draft: string) => {
-    setPromptDrafts(prev => {
-      const next = new Map(prev);
-      if (draft.trim()) {
-        next.set(sessionId, draft);
-      } else {
-        next.delete(sessionId); // Clean up empty drafts
-      }
-      return next;
-    });
-  };
-
-  // Clear draft for a specific session
-  const handleClearDraft = (sessionId: string) => {
-    setPromptDrafts(prev => {
-      const next = new Map(prev);
-      next.delete(sessionId);
-      return next;
-    });
-  };
-
   const handleSendPrompt = async (prompt: string, permissionMode?: PermissionMode) => {
     if (selectedSessionId) {
       const session = sessions.find(s => s.session_id === selectedSessionId);
@@ -292,58 +267,54 @@ export const App: React.FC<AppProps> = ({
       // Call the prompt endpoint
       // Note: onSendPrompt should be implemented in the parent to call the daemon
       onSendPrompt?.(selectedSessionId, prompt, permissionMode);
-
-      // Clear the draft after sending
-      handleClearDraft(selectedSessionId);
     }
   };
 
   const handleFork = (prompt: string) => {
     if (selectedSessionId) {
       onForkSession?.(selectedSessionId, prompt);
-      // Clear the draft after forking
-      handleClearDraft(selectedSessionId);
     }
   };
 
   const handleSubsession = (prompt: string) => {
     if (selectedSessionId) {
       onSpawnSession?.(selectedSessionId, prompt);
-      // Clear the draft after spawning subsession
-      handleClearDraft(selectedSessionId);
     }
   };
 
-  const handlePermissionDecision = async (
-    sessionId: string,
-    requestId: string,
-    taskId: string,
-    allow: boolean,
-    scope: PermissionScope
-  ) => {
-    if (!client) return;
+  const handlePermissionDecision = useCallback(
+    async (
+      sessionId: string,
+      requestId: string,
+      taskId: string,
+      allow: boolean,
+      scope: PermissionScope
+    ) => {
+      if (!client) return;
 
-    try {
-      console.log(
-        `📋 Permission decision: ${allow ? 'ALLOW' : 'DENY'} (${scope}) for task ${taskId}`
-      );
+      try {
+        console.log(
+          `📋 Permission decision: ${allow ? 'ALLOW' : 'DENY'} (${scope}) for task ${taskId}`
+        );
 
-      // Call the permission decision endpoint
-      await client.service(`sessions/${sessionId}/permission-decision`).create({
-        requestId,
-        taskId,
-        allow,
-        reason: allow ? 'Approved by user' : 'Denied by user',
-        remember: scope !== PermissionScope.ONCE, // Only remember if not 'once'
-        scope,
-        decidedBy: user?.user_id || 'anonymous',
-      });
+        // Call the permission decision endpoint
+        await client.service(`sessions/${sessionId}/permission-decision`).create({
+          requestId,
+          taskId,
+          allow,
+          reason: allow ? 'Approved by user' : 'Denied by user',
+          remember: scope !== PermissionScope.ONCE, // Only remember if not 'once'
+          scope,
+          decidedBy: user?.user_id || 'anonymous',
+        });
 
-      console.log(`✅ Permission decision sent successfully`);
-    } catch (error) {
-      console.error('❌ Failed to send permission decision:', error);
-    }
-  };
+        console.log(`✅ Permission decision sent successfully`);
+      } catch (error) {
+        console.error('❌ Failed to send permission decision:', error);
+      }
+    },
+    [client, user?.user_id]
+  );
 
   const handleUpdateModelConfig = (sessionId: string, modelConfig: ModelConfig) => {
     onUpdateSession?.(sessionId, {
@@ -541,10 +512,6 @@ export const App: React.FC<AppProps> = ({
         onStartEnvironment={onStartEnvironment}
         onStopEnvironment={onStopEnvironment}
         onViewLogs={setLogsModalWorktreeId}
-        promptDraft={selectedSessionId ? promptDrafts.get(selectedSessionId) || '' : ''}
-        onUpdateDraft={(draft: string) =>
-          selectedSessionId && handleUpdateDraft(selectedSessionId, draft)
-        }
       />
       <SettingsModal
         open={effectiveSettingsOpen}

@@ -100,8 +100,6 @@ interface SessionDrawerProps {
   onStartEnvironment?: (worktreeId: string) => void;
   onStopEnvironment?: (worktreeId: string) => void;
   onViewLogs?: (worktreeId: string) => void;
-  promptDraft?: string; // Draft prompt text for this session
-  onUpdateDraft?: (draft: string) => void; // Update draft callback
 }
 
 const SessionDrawer = ({
@@ -128,17 +126,38 @@ const SessionDrawer = ({
   onStartEnvironment,
   onStopEnvironment,
   onViewLogs,
-  promptDraft = '',
-  onUpdateDraft,
 }: SessionDrawerProps) => {
   const { token } = theme.useToken();
   const { modal } = App.useApp();
 
-  // Use prop-driven draft state instead of local state
-  const inputValue = promptDraft;
-  const setInputValue = (value: string) => {
-    onUpdateDraft?.(value);
-  };
+  // Per-session draft storage (persists across session switches, no parent re-renders!)
+  const draftsRef = React.useRef<Map<string, string>>(new Map());
+
+  // Local input state for current session
+  const [inputValue, setInputValue] = React.useState(() => {
+    return session ? draftsRef.current.get(session.session_id) || '' : '';
+  });
+
+  // Track previous session ID to detect switches
+  const prevSessionIdRef = React.useRef(session?.session_id);
+
+  // When session changes, save current draft and load new session's draft
+  React.useEffect(() => {
+    if (!session) return;
+
+    if (prevSessionIdRef.current !== session.session_id) {
+      // Save current draft before switching (if we had a previous session)
+      if (prevSessionIdRef.current && inputValue.trim()) {
+        draftsRef.current.set(prevSessionIdRef.current, inputValue);
+      } else if (prevSessionIdRef.current) {
+        draftsRef.current.delete(prevSessionIdRef.current);
+      }
+
+      // Load draft for new session
+      setInputValue(draftsRef.current.get(session.session_id) || '');
+      prevSessionIdRef.current = session.session_id;
+    }
+  }, [session, inputValue]);
 
   // Get agent-aware default permission mode (wrapped in useCallback for hook deps)
   const getDefaultPermissionMode = React.useCallback((agent?: string): PermissionMode => {
@@ -274,7 +293,9 @@ const SessionDrawer = ({
   const handleSendPrompt = () => {
     if (inputValue.trim()) {
       onSendPrompt?.(inputValue, permissionMode);
-      // Draft clearing is now handled by parent (App.tsx)
+      // Clear input and draft after sending
+      setInputValue('');
+      draftsRef.current.delete(session.session_id);
     }
   };
 
@@ -305,7 +326,9 @@ const SessionDrawer = ({
   const handleFork = () => {
     if (inputValue.trim()) {
       onFork?.(inputValue);
-      // Draft clearing is now handled by parent (App.tsx)
+      // Clear input and draft after forking
+      setInputValue('');
+      draftsRef.current.delete(session.session_id);
     }
   };
 
@@ -318,7 +341,9 @@ const SessionDrawer = ({
 
       // Send meta-prompt to the PARENT session (agent will use MCP tool)
       onSendPrompt?.(metaPrompt, permissionMode);
-      // Draft clearing is now handled by parent (App.tsx)
+      // Clear input and draft after subsession
+      setInputValue('');
+      draftsRef.current.delete(session.session_id);
     }
   };
 

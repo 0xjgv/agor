@@ -15,7 +15,7 @@
 import type { AgorClient } from '@agor/core/api';
 import type { Message, PermissionScope, SessionID, User } from '@agor/core/types';
 import { Alert, Empty, Spin } from 'antd';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStreamingMessages, useTasks } from '../../hooks';
 import { TaskBlock } from '../TaskBlock';
 
@@ -67,146 +67,150 @@ export interface ConversationViewProps {
   ) => void;
 }
 
-export const ConversationView: React.FC<ConversationViewProps> = ({
-  client,
-  sessionId,
-  agentic_tool,
-  sessionModel,
-  users = [],
-  currentUserId,
-  onScrollRef,
-  onPermissionDecision,
-}) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+export const ConversationView = React.memo<ConversationViewProps>(
+  ({
+    client,
+    sessionId,
+    agentic_tool,
+    sessionModel,
+    users = [],
+    currentUserId,
+    onScrollRef,
+    onPermissionDecision,
+  }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
 
-  // Check if user is scrolled near the bottom (within 100px)
-  const isNearBottom = useCallback(() => {
-    if (!containerRef.current) return true;
-    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-    return scrollHeight - scrollTop - clientHeight < 100;
-  }, []);
+    // Check if user is scrolled near the bottom (within 100px)
+    const isNearBottom = useCallback(() => {
+      if (!containerRef.current) return true;
+      const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+      return scrollHeight - scrollTop - clientHeight < 100;
+    }, []);
 
-  // Scroll to bottom function (wrapped in useCallback to avoid re-renders)
-  const scrollToBottom = useCallback(() => {
-    if (containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
-    }
-  }, []);
-
-  // Expose scroll function to parent
-  useEffect(() => {
-    if (onScrollRef) {
-      onScrollRef(scrollToBottom);
-    }
-  }, [onScrollRef, scrollToBottom]);
-
-  // Fetch tasks for this session
-  const { tasks, loading: tasksLoading, error: tasksError } = useTasks(client, sessionId);
-
-  // Track real-time streaming messages (passed to TaskBlock for filtering)
-  const streamingMessages = useStreamingMessages(client, sessionId || undefined);
-
-  const loading = tasksLoading;
-  const error = tasksError;
-
-  // Track which tasks are expanded (default: last task expanded)
-  const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(() => {
-    if (tasks.length > 0) {
-      return new Set([tasks[tasks.length - 1].task_id]);
-    }
-    return new Set();
-  });
-
-  // Update expanded state when tasks change (expand last task by default)
-  useEffect(() => {
-    if (tasks.length > 0) {
-      const lastTaskId = tasks[tasks.length - 1].task_id;
-      setExpandedTaskIds(prev => {
-        // If no tasks expanded or last task changed, expand the last task
-        if (prev.size === 0 || !prev.has(lastTaskId)) {
-          return new Set([lastTaskId]);
-        }
-        return prev;
-      });
-    }
-  }, [tasks]);
-
-  // Handle task expand/collapse
-  const handleTaskExpandChange = useCallback((taskId: string, expanded: boolean) => {
-    setExpandedTaskIds(prev => {
-      const next = new Set(prev);
-      if (expanded) {
-        next.add(taskId);
-      } else {
-        next.delete(taskId);
+    // Scroll to bottom function (wrapped in useCallback to avoid re-renders)
+    const scrollToBottom = useCallback(() => {
+      if (containerRef.current) {
+        containerRef.current.scrollTop = containerRef.current.scrollHeight;
       }
-      return next;
+    }, []);
+
+    // Expose scroll function to parent
+    useEffect(() => {
+      if (onScrollRef) {
+        onScrollRef(scrollToBottom);
+      }
+    }, [onScrollRef, scrollToBottom]);
+
+    // Fetch tasks for this session
+    const { tasks, loading: tasksLoading, error: tasksError } = useTasks(client, sessionId);
+
+    // Track real-time streaming messages (passed to TaskBlock for filtering)
+    const streamingMessages = useStreamingMessages(client, sessionId || undefined);
+
+    const loading = tasksLoading;
+    const error = tasksError;
+
+    // Track which tasks are expanded (default: last task expanded)
+    const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(() => {
+      if (tasks.length > 0) {
+        return new Set([tasks[tasks.length - 1].task_id]);
+      }
+      return new Set();
     });
-  }, []);
 
-  // Auto-scroll to bottom when streaming messages arrive (only if user is already at bottom)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: We want to scroll on streaming change
-  useEffect(() => {
-    if (isNearBottom()) {
-      scrollToBottom();
+    // Update expanded state when tasks change (expand last task by default)
+    useEffect(() => {
+      if (tasks.length > 0) {
+        const lastTaskId = tasks[tasks.length - 1].task_id;
+        setExpandedTaskIds(prev => {
+          // If no tasks expanded or last task changed, expand the last task
+          if (prev.size === 0 || !prev.has(lastTaskId)) {
+            return new Set([lastTaskId]);
+          }
+          return prev;
+        });
+      }
+    }, [tasks]);
+
+    // Handle task expand/collapse
+    const handleTaskExpandChange = useCallback((taskId: string, expanded: boolean) => {
+      setExpandedTaskIds(prev => {
+        const next = new Set(prev);
+        if (expanded) {
+          next.add(taskId);
+        } else {
+          next.delete(taskId);
+        }
+        return next;
+      });
+    }, []);
+
+    // Auto-scroll to bottom when streaming messages arrive (only if user is already at bottom)
+    // biome-ignore lint/correctness/useExhaustiveDependencies: We want to scroll on streaming change
+    useEffect(() => {
+      if (isNearBottom()) {
+        scrollToBottom();
+      }
+    }, [streamingMessages, tasks]);
+
+    if (error) {
+      return (
+        <Alert type="error" message="Failed to load conversation" description={error} showIcon />
+      );
     }
-  }, [streamingMessages, tasks]);
 
-  if (error) {
-    return (
-      <Alert type="error" message="Failed to load conversation" description={error} showIcon />
-    );
-  }
+    if (loading && tasks.length === 0) {
+      return (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+          <Spin />
+        </div>
+      );
+    }
 
-  if (loading && tasks.length === 0) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
-        <Spin />
-      </div>
-    );
-  }
+    if (tasks.length === 0) {
+      return (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '100%',
+            padding: '2rem',
+          }}
+        >
+          <Empty description="No conversation yet" />
+        </div>
+      );
+    }
 
-  if (tasks.length === 0) {
     return (
       <div
+        ref={containerRef}
         style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
           height: '100%',
-          padding: '2rem',
+          overflowY: 'auto',
+          padding: '12px',
         }}
       >
-        <Empty description="No conversation yet" />
+        {/* Task-organized conversation */}
+        {tasks.map(task => (
+          <TaskBlock
+            key={task.task_id}
+            task={task}
+            client={client}
+            agentic_tool={agentic_tool}
+            sessionModel={sessionModel}
+            users={users}
+            currentUserId={currentUserId}
+            isExpanded={expandedTaskIds.has(task.task_id)}
+            onExpandChange={expanded => handleTaskExpandChange(task.task_id, expanded)}
+            sessionId={sessionId}
+            onPermissionDecision={onPermissionDecision}
+          />
+        ))}
       </div>
     );
   }
+);
 
-  return (
-    <div
-      ref={containerRef}
-      style={{
-        height: '100%',
-        overflowY: 'auto',
-        padding: '12px',
-      }}
-    >
-      {/* Task-organized conversation */}
-      {tasks.map(task => (
-        <TaskBlock
-          key={task.task_id}
-          task={task}
-          client={client}
-          agentic_tool={agentic_tool}
-          sessionModel={sessionModel}
-          users={users}
-          currentUserId={currentUserId}
-          isExpanded={expandedTaskIds.has(task.task_id)}
-          onExpandChange={expanded => handleTaskExpandChange(task.task_id, expanded)}
-          sessionId={sessionId}
-          onPermissionDecision={onPermissionDecision}
-        />
-      ))}
-    </div>
-  );
-};
+ConversationView.displayName = 'ConversationView';
