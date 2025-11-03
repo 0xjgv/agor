@@ -6,12 +6,12 @@
  * associated with that worktree.
  */
 
-import { createClient } from '@agor/core/api';
 import type { Board, BoardEntityObject, Session, Worktree } from '@agor/core/types';
-import { Args, Command } from '@oclif/core';
+import { Args } from '@oclif/core';
 import chalk from 'chalk';
+import { BaseCommand } from '../../base-command';
 
-export default class BoardAddSession extends Command {
+export default class BoardAddSession extends BaseCommand {
   static override description =
     "Add a session's worktree to a board (sessions are organized through worktrees)";
 
@@ -33,7 +33,7 @@ export default class BoardAddSession extends Command {
 
   public async run(): Promise<void> {
     const { args } = await this.parse(BoardAddSession);
-    const client = createClient();
+    const client = await this.connectToDaemon();
 
     try {
       // Find board by ID or slug
@@ -48,9 +48,8 @@ export default class BoardAddSession extends Command {
       );
 
       if (!board) {
-        this.log(chalk.red(`✗ Board not found: ${args.boardId}`));
-        await this.cleanup(client);
-        process.exit(1);
+        await this.cleanupClient(client);
+        this.error(`Board not found: ${args.boardId}`);
       }
 
       // Find session by short or full ID
@@ -64,16 +63,14 @@ export default class BoardAddSession extends Command {
       );
 
       if (!session) {
-        this.log(chalk.red(`✗ Session not found: ${args.sessionId}`));
-        await this.cleanup(client);
-        process.exit(1);
+        await this.cleanupClient(client);
+        this.error(`Session not found: ${args.sessionId}`);
       }
 
       // Get worktree for this session
       if (!session.worktree_id) {
-        this.log(chalk.red(`✗ Session has no worktree associated`));
-        await this.cleanup(client);
-        process.exit(1);
+        await this.cleanupClient(client);
+        this.error('Session has no worktree associated');
       }
 
       const worktreesResult = await client.service('worktrees').find();
@@ -84,9 +81,8 @@ export default class BoardAddSession extends Command {
       const worktree = worktrees.find((w: Worktree) => w.worktree_id === session.worktree_id);
 
       if (!worktree) {
-        this.log(chalk.red(`✗ Worktree not found for session`));
-        await this.cleanup(client);
-        process.exit(1);
+        await this.cleanupClient(client);
+        this.error('Worktree not found for session');
       }
 
       // Check if worktree is already on the board
@@ -106,7 +102,7 @@ export default class BoardAddSession extends Command {
 
       if (existingObject) {
         this.log(chalk.yellow(`⚠ Worktree "${worktree.name}" already on board "${board.name}"`));
-        await this.cleanup(client);
+        await this.cleanupClient(client);
         return;
       }
 
@@ -123,22 +119,10 @@ export default class BoardAddSession extends Command {
         )
       );
     } catch (error) {
-      this.log(chalk.red('✗ Failed to add session to board'));
-      if (error instanceof Error) {
-        this.log(chalk.red(error.message));
-      }
-      await this.cleanup(client);
-      process.exit(1);
+      await this.cleanupClient(client);
+      this.error(`Failed to add session to board: ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    await this.cleanup(client);
-  }
-
-  private async cleanup(client: import('@agor/core/api').AgorClient): Promise<void> {
-    await new Promise<void>((resolve) => {
-      client.io.once('disconnect', () => resolve());
-      client.io.close();
-      setTimeout(() => resolve(), 1000);
-    });
+    await this.cleanupClient(client);
   }
 }

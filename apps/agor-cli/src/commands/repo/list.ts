@@ -4,13 +4,12 @@
  * Displays repositories in a beautiful table.
  */
 
-import { createClient, isDaemonRunning } from '@agor/core/api';
-import { getDaemonUrl } from '@agor/core/config';
 import { formatShortId } from '@agor/core/db';
 import type { Repo } from '@agor/core/types';
-import { Command, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import Table from 'cli-table3';
+import { BaseCommand } from '../../base-command';
 
 // Type for paginated responses
 interface Paginated<T> {
@@ -20,7 +19,7 @@ interface Paginated<T> {
   data: T[];
 }
 
-export default class RepoList extends Command {
+export default class RepoList extends BaseCommand {
   static description = 'List all registered repositories';
 
   static examples = ['<%= config.bin %> <%= command.id %>'];
@@ -43,20 +42,9 @@ export default class RepoList extends Command {
 
   async run(): Promise<void> {
     const { flags } = await this.parse(RepoList);
-
-    // Check if daemon is running
-    const daemonUrl = await getDaemonUrl();
-    const running = await isDaemonRunning(daemonUrl);
-
-    if (!running) {
-      this.error(
-        `Daemon not running. Start it with: ${chalk.cyan('cd apps/agor-daemon && pnpm dev')}`
-      );
-    }
+    const client = await this.connectToDaemon();
 
     try {
-      // Connect to daemon
-      const client = createClient(daemonUrl);
 
       // Build query
       const query = {
@@ -76,8 +64,7 @@ export default class RepoList extends Command {
         this.log('');
         this.log(`Add one with: ${chalk.cyan('agor repo add <git-url>')}`);
         this.log('');
-        client.io.close();
-        process.exit(0);
+        await this.cleanupClient(client);
         return;
       }
 
@@ -121,10 +108,9 @@ export default class RepoList extends Command {
       }
       this.log('');
 
-      // Close socket connection to allow process to exit
-      client.io.close();
-      process.exit(0);
+      await this.cleanupClient(client);
     } catch (error) {
+      await this.cleanupClient(client);
       this.error(
         `Failed to fetch repos: ${error instanceof Error ? error.message : String(error)}`
       );

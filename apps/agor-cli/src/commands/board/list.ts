@@ -2,41 +2,18 @@
  * List all boards
  */
 
-import { createClient, isDaemonRunning } from '@agor/core/api';
-import { getDaemonUrl } from '@agor/core/config';
 import type { Board, BoardEntityObject } from '@agor/core/types';
-import { Command } from '@oclif/core';
 import chalk from 'chalk';
 import Table from 'cli-table3';
+import { BaseCommand } from '../../base-command';
 
-export default class BoardList extends Command {
+export default class BoardList extends BaseCommand {
   static override description = 'List all boards';
 
   static override examples = ['<%= config.bin %> <%= command.id %>'];
 
   public async run(): Promise<void> {
-    // Check if daemon is running first (fast fail)
-    const daemonUrl = await getDaemonUrl();
-    const running = await isDaemonRunning(daemonUrl);
-
-    if (!running) {
-      this.log(
-        chalk.red('✗ Daemon not running') +
-          '\n\n' +
-          chalk.bold('To start the daemon:') +
-          '\n  ' +
-          chalk.cyan('cd apps/agor-daemon && pnpm dev') +
-          '\n\n' +
-          chalk.bold('To configure daemon URL:') +
-          '\n  ' +
-          chalk.cyan('agor config set daemon.url <url>') +
-          '\n  ' +
-          chalk.gray(`Current: ${daemonUrl}`)
-      );
-      this.exit(1);
-    }
-
-    const client = createClient(daemonUrl, true, { verbose: false });
+    const client = await this.connectToDaemon();
 
     try {
       // Fetch boards
@@ -45,7 +22,7 @@ export default class BoardList extends Command {
 
       if (boards.length === 0) {
         this.log(chalk.yellow('No boards found.'));
-        await this.cleanup(client);
+        await this.cleanupClient(client);
         return;
       }
 
@@ -83,22 +60,10 @@ export default class BoardList extends Command {
       this.log(table.toString());
       this.log(chalk.gray(`\nTotal: ${boards.length} board(s)`));
     } catch (error) {
-      this.log(chalk.red('✗ Failed to fetch boards'));
-      if (error instanceof Error) {
-        this.log(chalk.red(error.message));
-      }
-      await this.cleanup(client);
-      process.exit(1);
+      await this.cleanupClient(client);
+      this.error(`Failed to fetch boards: ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    await this.cleanup(client);
-  }
-
-  private async cleanup(client: import('@agor/core/api').AgorClient): Promise<void> {
-    await new Promise<void>((resolve) => {
-      client.io.once('disconnect', () => resolve());
-      client.io.close();
-      setTimeout(() => resolve(), 1000);
-    });
+    await this.cleanupClient(client);
   }
 }
