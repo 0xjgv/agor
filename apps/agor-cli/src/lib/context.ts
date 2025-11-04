@@ -6,6 +6,8 @@
  * - Production: daemon lifecycle commands available (start/stop/etc)
  */
 
+import { access, constants } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -98,5 +100,30 @@ export function getUIUrl(): string {
   } else {
     // Development: Vite dev server
     return 'http://localhost:5173';
+  }
+}
+
+/**
+ * Check if Agor has been initialized
+ *
+ * A valid Agor initialization requires:
+ * 1. ~/.agor/ directory exists
+ * 2. ~/.agor/agor.db database file exists
+ *
+ * @returns true if Agor is initialized, false otherwise
+ */
+export async function isAgorInitialized(): Promise<boolean> {
+  try {
+    const agorDir = path.join(homedir(), '.agor');
+    const dbPath = path.join(agorDir, 'agor.db');
+
+    // Check if both directory and database exist
+    await access(agorDir, constants.F_OK);
+    await access(dbPath, constants.F_OK);
+
+    return true;
+  } catch {
+    // Either directory or database doesn't exist
+    return false;
   }
 }

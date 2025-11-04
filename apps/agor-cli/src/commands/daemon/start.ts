@@ -6,7 +6,7 @@ import { isDaemonRunning } from '@agor/core/api';
 import { getDaemonUrl } from '@agor/core/config';
 import { Command, Flags } from '@oclif/core';
 import chalk from 'chalk';
-import { getDaemonPath, isInstalledPackage } from '../../lib/context.js';
+import { getDaemonPath, isAgorInitialized, isInstalledPackage } from '../../lib/context.js';
 import { startDaemon } from '../../lib/daemon-manager.js';
 
 export default class DaemonStart extends Command {
@@ -34,6 +34,17 @@ export default class DaemonStart extends Command {
       this.log('');
       this.log(chalk.bold('In development, start the daemon with:'));
       this.log(`  ${chalk.cyan('cd apps/agor-daemon && pnpm dev')}`);
+      this.log('');
+      this.exit(1);
+    }
+
+    // Check if Agor has been initialized
+    const initialized = await isAgorInitialized();
+    if (!initialized) {
+      this.log(chalk.red('✗ Agor is not initialized'));
+      this.log('');
+      this.log('Initialize Agor first with:');
+      this.log(`  ${chalk.cyan('agor init')}`);
       this.log('');
       this.exit(1);
     }
