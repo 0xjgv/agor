@@ -1,6 +1,6 @@
 {
   "name": "Agor Playground (Recommended - Fast npm install)",
-  // Cache bust: 2025-11-04-v2 - Version 0.6.6 - Add Docker/local dev workflow guidance
+  // Cache bust: 2025-11-04-v3 - Version 0.6.7 - Fix dev mode detection for agor-live CLI
   "build": {
     "dockerfile": "playground/Dockerfile",
     "context": "..",
