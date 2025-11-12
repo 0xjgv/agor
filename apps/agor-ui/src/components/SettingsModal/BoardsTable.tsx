@@ -2,12 +2,14 @@ import type { Board, Session, Worktree } from '@agor/core/types';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   Button,
+  Checkbox,
   ColorPicker,
   Flex,
   Form,
   Input,
   Modal,
   Popconfirm,
+  Select,
   Space,
   Table,
   Typography,
@@ -18,6 +20,77 @@ import { FormEmojiPickerInput } from '../EmojiPickerInput';
 import { JSONEditor, validateJSON } from '../JSONEditor';
 
 // Using Typography.Text directly to avoid DOM Text interface collision
+
+// Background presets
+const BACKGROUND_PRESETS = [
+  {
+    label: 'Rainbow (7 colors)',
+    value:
+      'linear-gradient(to right, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3)',
+  },
+  {
+    label: 'Multi-color gradient',
+    value:
+      'linear-gradient(124deg, #ff2400, #e81d1d, #e8b71d, #e3e81d, #1de840, #1ddde8, #2b1de8, #dd00f3, #dd00f3)',
+  },
+  {
+    label: 'Pink to blue gradient',
+    value:
+      'linear-gradient(180deg, #f093fb 0%, #f5576c 25%, #4facfe 50%, #00f2fe 75%, #43e97b 100%)',
+  },
+  {
+    label: 'Gold shimmer',
+    value: 'linear-gradient(135deg, #f5af19 0%, #f12711 30%, #f5af19 60%, #f12711 100%)',
+  },
+  {
+    label: 'Cyan/magenta grid',
+    value:
+      'repeating-linear-gradient(0deg, transparent, transparent 2px, #0ff 2px, #0ff 4px), repeating-linear-gradient(90deg, transparent, transparent 2px, #f0f 2px, #f0f 4px), linear-gradient(180deg, #000, #001a1a)',
+  },
+  {
+    label: 'Diagonal stripes (colorful)',
+    value:
+      'repeating-linear-gradient(45deg, #ff006e 0px, #ff006e 10px, #ffbe0b 10px, #ffbe0b 20px, #8338ec 20px, #8338ec 30px, #3a86ff 30px, #3a86ff 40px)',
+  },
+  {
+    label: 'Conic gradient (warm colors)',
+    value:
+      'conic-gradient(from 45deg, #ff0080, #ff8c00, #40e0d0, #ff0080, #ff8c00, #40e0d0, #ff0080)',
+  },
+  {
+    label: 'Dark with purple/pink spots',
+    value:
+      'radial-gradient(ellipse at top, #1b2735 0%, #090a0f 100%), radial-gradient(circle at 20% 50%, rgba(120, 0, 255, 0.3) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(255, 0, 120, 0.3) 0%, transparent 50%)',
+  },
+  {
+    label: 'Quadrant blocks (conic)',
+    value:
+      'repeating-conic-gradient(from 0deg at 50% 50%, #ff006e 0deg 90deg, #8338ec 90deg 180deg, #3a86ff 180deg 270deg, #fb5607 270deg 360deg)',
+  },
+  {
+    label: 'RGB stripes',
+    value:
+      'linear-gradient(90deg, #000 0%, #f00 20%, #000 21%, #0f0 40%, #000 41%, #00f 60%, #000 61%, #fff 80%, #000 81%)',
+  },
+  {
+    label: 'Fine diagonal lines (B&W)',
+    value: 'repeating-linear-gradient(45deg, #000, #000 1px, #fff 1px, #fff 2px)',
+  },
+  {
+    label: 'Dark with magenta/cyan glow',
+    value:
+      'radial-gradient(circle at 30% 50%, rgba(255, 0, 255, 0.5), transparent 50%), radial-gradient(circle at 70% 70%, rgba(0, 255, 255, 0.5), transparent 50%), linear-gradient(180deg, #0a0a0a, #1a1a2e)',
+  },
+  {
+    label: 'Sunburst (conic)',
+    value:
+      'conic-gradient(from 0deg, #ffbe0b 0deg, #fb5607 60deg, #ff006e 120deg, #8338ec 180deg, #3a86ff 240deg, #ffbe0b 300deg, #fb5607 360deg)',
+  },
+  {
+    label: 'Checkerboard (purple)',
+    value: 'repeating-linear-gradient(45deg, #606dbc, #606dbc 10px, #465298 10px, #465298 20px)',
+  },
+];
 
 interface BoardsTableProps {
   boards: Board[];
@@ -39,7 +112,17 @@ export const BoardsTable: React.FC<BoardsTableProps> = ({
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingBoard, setEditingBoard] = useState<Board | null>(null);
+  const [useCustomCSSCreate, setUseCustomCSSCreate] = useState(false);
+  const [useCustomCSSEdit, setUseCustomCSSEdit] = useState(false);
   const [form] = Form.useForm();
+
+  // Helper to detect if a background value is custom CSS (not a simple hex color)
+  const isCustomCSS = (value: string | undefined): boolean => {
+    if (!value) return false;
+    // Simple hex colors like #ffffff or rgb/rgba are not custom CSS
+    // Everything else (gradients, patterns) is custom CSS
+    return !value.match(/^#[0-9a-fA-F]{3,8}$/) && !value.match(/^rgba?\(/);
+  };
 
   // Calculate session count per board (worktree-centric model)
   const boardSessionCounts = useMemo(() => {
@@ -76,11 +159,14 @@ export const BoardsTable: React.FC<BoardsTableProps> = ({
       });
       form.resetFields();
       setCreateModalOpen(false);
+      setUseCustomCSSCreate(false);
     });
   };
 
   const handleEdit = (board: Board) => {
     setEditingBoard(board);
+    const hasCustomCSS = isCustomCSS(board.background_color);
+    setUseCustomCSSEdit(hasCustomCSS);
     form.setFieldsValue({
       name: board.name,
       icon: board.icon,
@@ -109,6 +195,7 @@ export const BoardsTable: React.FC<BoardsTableProps> = ({
       form.resetFields();
       setEditModalOpen(false);
       setEditingBoard(null);
+      setUseCustomCSSEdit(false);
     });
   };
 
@@ -202,6 +289,7 @@ export const BoardsTable: React.FC<BoardsTableProps> = ({
         onCancel={() => {
           form.resetFields();
           setCreateModalOpen(false);
+          setUseCustomCSSCreate(false);
         }}
         okText="Create"
       >
@@ -225,12 +313,58 @@ export const BoardsTable: React.FC<BoardsTableProps> = ({
             <Input.TextArea placeholder="Optional description..." rows={3} />
           </Form.Item>
 
-          <Form.Item
-            label="Background Color"
-            name="background_color"
-            help="Set a custom background color for the board canvas"
-          >
-            <ColorPicker showText format="hex" allowClear />
+          <Form.Item label="Background">
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Checkbox
+                checked={useCustomCSSCreate}
+                onChange={e => {
+                  setUseCustomCSSCreate(e.target.checked);
+                  if (e.target.checked) {
+                    // Clear the color picker value when switching to custom CSS
+                    form.setFieldsValue({ background_color: undefined });
+                  }
+                }}
+              >
+                Use custom CSS background
+              </Checkbox>
+
+              {!useCustomCSSCreate ? (
+                <Form.Item name="background_color" noStyle>
+                  <ColorPicker showText format="hex" allowClear />
+                </Form.Item>
+              ) : (
+                <>
+                  <Select
+                    placeholder="Load a preset..."
+                    style={{ width: '100%', marginBottom: 8 }}
+                    allowClear
+                    showSearch
+                    options={BACKGROUND_PRESETS}
+                    onChange={value => {
+                      if (value) {
+                        form.setFieldsValue({ background_color: value });
+                      }
+                    }}
+                  />
+                  <Form.Item name="background_color" noStyle>
+                    <Input.TextArea
+                      placeholder="Enter custom CSS or select a preset above"
+                      rows={3}
+                      style={{ fontFamily: 'monospace', fontSize: '12px' }}
+                    />
+                  </Form.Item>
+                </>
+              )}
+
+              <Typography.Text
+                type="secondary"
+                style={{ fontSize: '12px', display: 'block', marginTop: 4 }}
+              >
+                {!useCustomCSSCreate
+                  ? 'Set a solid background color for the board canvas'
+                  : 'Choose a preset or enter any valid CSS background property (gradients, patterns, etc.)'}
+              </Typography.Text>
+            </Space>
           </Form.Item>
 
           <Form.Item
@@ -253,6 +387,7 @@ export const BoardsTable: React.FC<BoardsTableProps> = ({
           form.resetFields();
           setEditModalOpen(false);
           setEditingBoard(null);
+          setUseCustomCSSEdit(false);
         }}
         okText="Save"
       >
@@ -276,12 +411,58 @@ export const BoardsTable: React.FC<BoardsTableProps> = ({
             <Input.TextArea placeholder="Optional description..." rows={3} />
           </Form.Item>
 
-          <Form.Item
-            label="Background Color"
-            name="background_color"
-            help="Set a custom background color for the board canvas"
-          >
-            <ColorPicker showText format="hex" allowClear />
+          <Form.Item label="Background">
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Checkbox
+                checked={useCustomCSSEdit}
+                onChange={e => {
+                  setUseCustomCSSEdit(e.target.checked);
+                  if (e.target.checked) {
+                    // Clear the color picker value when switching to custom CSS
+                    form.setFieldsValue({ background_color: undefined });
+                  }
+                }}
+              >
+                Use custom CSS background
+              </Checkbox>
+
+              {!useCustomCSSEdit ? (
+                <Form.Item name="background_color" noStyle>
+                  <ColorPicker showText format="hex" allowClear />
+                </Form.Item>
+              ) : (
+                <>
+                  <Select
+                    placeholder="Load a preset..."
+                    style={{ width: '100%', marginBottom: 8 }}
+                    allowClear
+                    showSearch
+                    options={BACKGROUND_PRESETS}
+                    onChange={value => {
+                      if (value) {
+                        form.setFieldsValue({ background_color: value });
+                      }
+                    }}
+                  />
+                  <Form.Item name="background_color" noStyle>
+                    <Input.TextArea
+                      placeholder="Enter custom CSS or select a preset above"
+                      rows={3}
+                      style={{ fontFamily: 'monospace', fontSize: '12px' }}
+                    />
+                  </Form.Item>
+                </>
+              )}
+
+              <Typography.Text
+                type="secondary"
+                style={{ fontSize: '12px', display: 'block', marginTop: 4 }}
+              >
+                {!useCustomCSSEdit
+                  ? 'Set a solid background color for the board canvas'
+                  : 'Choose a preset or enter any valid CSS background property (gradients, patterns, etc.)'}
+              </Typography.Text>
+            </Space>
           </Form.Item>
 
           <Form.Item

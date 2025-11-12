@@ -1612,133 +1612,141 @@ const SessionCanvas = ({
         />
       )}
 
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onNodeDragStart={handleNodeDragStart}
-        onNodeDrag={handleNodeDrag}
-        onNodeDragStop={handleNodeDragStop}
-        onNodeClick={handleNodeClick}
-        onPaneClick={handlePaneClick}
-        onInit={instance => {
-          reactFlowInstanceRef.current = instance;
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          background: board?.background_color || undefined,
         }}
-        nodeTypes={nodeTypes}
-        snapToGrid={true}
-        snapGrid={[20, 20]}
-        fitView
-        minZoom={0.1}
-        maxZoom={1.5}
-        nodesDraggable={true}
-        nodesConnectable={false}
-        elementsSelectable={true}
-        elevateNodesOnSelect={false}
-        panOnDrag={activeTool === 'select'}
-        className={`tool-mode-${activeTool}`}
-        // Disable React Flow's default keyboard shortcuts to prevent conflicts
-        // Note: React Flow keyboard shortcuts were causing Spatial Messages to appear
-        // undesirably when clicking/typing. Disabling all keyboard shortcuts for now.
-        deleteKeyCode={null}
-        selectionKeyCode={null}
-        multiSelectionKeyCode={null}
-        panActivationKeyCode={null}
-        zoomActivationKeyCode={null}
-        disableKeyboardA11y={true}
-        style={board?.background_color ? { backgroundColor: board.background_color } : undefined}
       >
-        <Background color={board?.background_color} />
-        <Controls position="top-left" showInteractive={false}>
-          {/* Custom toolbox buttons */}
-          <ControlButton
-            onClick={e => {
-              e.stopPropagation();
-              setActiveTool('select');
-            }}
-            title="Select"
-            style={{
-              borderLeft: activeTool === 'select' ? '3px solid #1677ff' : 'none',
-            }}
-          >
-            <SelectOutlined style={{ fontSize: '16px' }} />
-          </ControlButton>
-          <ControlButton
-            onClick={e => {
-              e.stopPropagation();
-              setActiveTool('zone');
-            }}
-            title="Add Zone"
-            style={{
-              borderLeft: activeTool === 'zone' ? '3px solid #1677ff' : 'none',
-            }}
-          >
-            <BorderOutlined style={{ fontSize: '16px' }} />
-          </ControlButton>
-          <ControlButton
-            onClick={e => {
-              e.stopPropagation();
-              setActiveTool('comment');
-            }}
-            title="Add Comment"
-            style={{
-              borderLeft: activeTool === 'comment' ? '3px solid #1677ff' : 'none',
-            }}
-          >
-            <CommentOutlined style={{ fontSize: '16px' }} />
-          </ControlButton>
-          <ControlButton
-            onClick={e => {
-              e.stopPropagation();
-              setActiveTool(activeTool === 'eraser' ? 'select' : 'eraser');
-            }}
-            title="Eraser - Click to toggle"
-            style={{
-              borderLeft: activeTool === 'eraser' ? `3px solid ${token.colorError}` : 'none',
-              color: activeTool === 'eraser' ? token.colorError : 'inherit',
-              backgroundColor: activeTool === 'eraser' ? `${token.colorError}15` : 'transparent',
-            }}
-          >
-            <DeleteOutlined style={{ fontSize: '16px' }} />
-          </ControlButton>
-        </Controls>
-        <MiniMap
-          nodeColor={node => {
-            // Handle cursor nodes (show as bright color)
-            if (node.type === 'cursor') return token.colorWarning;
-
-            // Handle comment nodes - 100% alpha for top hierarchy
-            if (node.type === 'comment') return token.colorText;
-
-            // Handle board objects (zones) - 40% alpha for middle-low layer
-            if (node.type === 'zone') return `${token.colorText}66`;
-
-            // Handle session/worktree nodes - primary border color for middle-high layer
-            const session = node.data.session as Session;
-            if (!session) return token.colorPrimaryBorder;
-
-            switch (session.status) {
-              case 'running':
-                return token.colorPrimary;
-              case 'completed':
-                return token.colorSuccess;
-              case 'failed':
-                return token.colorError;
-              default:
-                return token.colorPrimaryBorder;
-            }
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onNodeDragStart={handleNodeDragStart}
+          onNodeDrag={handleNodeDrag}
+          onNodeDragStop={handleNodeDragStop}
+          onNodeClick={handleNodeClick}
+          onPaneClick={handlePaneClick}
+          onInit={instance => {
+            reactFlowInstanceRef.current = instance;
           }}
-          pannable
-          zoomable
-          style={{
-            backgroundColor: token.colorBgElevated,
-            border: `1px solid ${token.colorBorder}`,
-          }}
-          maskColor="rgba(0, 0, 0, 0.5)"
-          maskStrokeColor={token.colorPrimary}
-          maskStrokeWidth={2}
-        />
-      </ReactFlow>
+          nodeTypes={nodeTypes}
+          snapToGrid={true}
+          snapGrid={[20, 20]}
+          fitView
+          minZoom={0.1}
+          maxZoom={1.5}
+          nodesDraggable={true}
+          nodesConnectable={false}
+          elementsSelectable={true}
+          elevateNodesOnSelect={false}
+          panOnDrag={activeTool === 'select'}
+          className={`tool-mode-${activeTool}`}
+          // Disable React Flow's default keyboard shortcuts to prevent conflicts
+          // Note: React Flow keyboard shortcuts were causing Spatial Messages to appear
+          // undesirably when clicking/typing. Disabling all keyboard shortcuts for now.
+          deleteKeyCode={null}
+          selectionKeyCode={null}
+          multiSelectionKeyCode={null}
+          panActivationKeyCode={null}
+          zoomActivationKeyCode={null}
+          disableKeyboardA11y={true}
+          style={{ background: 'transparent' }}
+        >
+          {!board?.background_color && <Background />}
+          <Controls position="top-left" showInteractive={false}>
+            {/* Custom toolbox buttons */}
+            <ControlButton
+              onClick={e => {
+                e.stopPropagation();
+                setActiveTool('select');
+              }}
+              title="Select"
+              style={{
+                borderLeft: activeTool === 'select' ? '3px solid #1677ff' : 'none',
+              }}
+            >
+              <SelectOutlined style={{ fontSize: '16px' }} />
+            </ControlButton>
+            <ControlButton
+              onClick={e => {
+                e.stopPropagation();
+                setActiveTool('zone');
+              }}
+              title="Add Zone"
+              style={{
+                borderLeft: activeTool === 'zone' ? '3px solid #1677ff' : 'none',
+              }}
+            >
+              <BorderOutlined style={{ fontSize: '16px' }} />
+            </ControlButton>
+            <ControlButton
+              onClick={e => {
+                e.stopPropagation();
+                setActiveTool('comment');
+              }}
+              title="Add Comment"
+              style={{
+                borderLeft: activeTool === 'comment' ? '3px solid #1677ff' : 'none',
+              }}
+            >
+              <CommentOutlined style={{ fontSize: '16px' }} />
+            </ControlButton>
+            <ControlButton
+              onClick={e => {
+                e.stopPropagation();
+                setActiveTool(activeTool === 'eraser' ? 'select' : 'eraser');
+              }}
+              title="Eraser - Click to toggle"
+              style={{
+                borderLeft: activeTool === 'eraser' ? `3px solid ${token.colorError}` : 'none',
+                color: activeTool === 'eraser' ? token.colorError : 'inherit',
+                backgroundColor: activeTool === 'eraser' ? `${token.colorError}15` : 'transparent',
+              }}
+            >
+              <DeleteOutlined style={{ fontSize: '16px' }} />
+            </ControlButton>
+          </Controls>
+          <MiniMap
+            nodeColor={node => {
+              // Handle cursor nodes (show as bright color)
+              if (node.type === 'cursor') return token.colorWarning;
+
+              // Handle comment nodes - 100% alpha for top hierarchy
+              if (node.type === 'comment') return token.colorText;
+
+              // Handle board objects (zones) - 40% alpha for middle-low layer
+              if (node.type === 'zone') return `${token.colorText}66`;
+
+              // Handle session/worktree nodes - primary border color for middle-high layer
+              const session = node.data.session as Session;
+              if (!session) return token.colorPrimaryBorder;
+
+              switch (session.status) {
+                case 'running':
+                  return token.colorPrimary;
+                case 'completed':
+                  return token.colorSuccess;
+                case 'failed':
+                  return token.colorError;
+                default:
+                  return token.colorPrimaryBorder;
+              }
+            }}
+            pannable
+            zoomable
+            style={{
+              backgroundColor: token.colorBgElevated,
+              border: `1px solid ${token.colorBorder}`,
+            }}
+            maskColor="rgba(0, 0, 0, 0.5)"
+            maskStrokeColor={token.colorPrimary}
+            maskStrokeWidth={2}
+          />
+        </ReactFlow>
+      </div>
 
       {/* Spatial comment placement popover */}
       {commentPlacement && (
