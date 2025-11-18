@@ -11,7 +11,7 @@ import {
   ToolOutlined,
 } from '@ant-design/icons';
 import { Button, Popover, Tag, Typography, theme } from 'antd';
-import React from 'react';
+import type React from 'react';
 import type { SocketEvent } from '../../hooks/useEventStream';
 
 const { Text } = Typography;
@@ -142,18 +142,16 @@ export const EventItem = ({ event }: EventItemProps): React.JSX.Element => {
         {event.eventName}
       </Text>
 
-      <>
-        {event.data && (
-          <Popover content={detailsContent} title="Event Data" trigger="click" placement="left">
-            <Button
-              type="text"
-              size="small"
-              icon={<InfoCircleOutlined />}
-              style={{ padding: '0 4px' }}
-            />
-          </Popover>
-        )}
-      </>
+      {event.data ? (
+        <Popover content={detailsContent} title="Event Data" trigger="click" placement="left">
+          <Button
+            type="text"
+            size="small"
+            icon={<InfoCircleOutlined />}
+            style={{ padding: '0 4px' }}
+          />
+        </Popover>
+      ) : null}
     </div>
   );
 };
