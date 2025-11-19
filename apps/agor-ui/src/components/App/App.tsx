@@ -10,7 +10,6 @@ import type {
   Repo,
   Session,
   SpawnConfig,
-  Task,
   UpdateUserInput,
   User,
   Worktree,
@@ -50,7 +49,6 @@ export interface AppProps {
   connecting?: boolean;
   sessionById: Map<string, Session>; // O(1) lookups by session_id - efficient, stable references
   sessionsByWorktree: Map<string, Session[]>; // O(1) worktree-scoped filtering
-  tasks: Map<string, Task[]>; // Map-based task storage by session_id
   availableAgents: AgenticToolOption[];
   boardById: Map<string, Board>; // Map-based board storage
   boardObjectById: Map<string, BoardEntityObject>; // Map-based board object storage
@@ -124,7 +122,6 @@ export const App: React.FC<AppProps> = ({
   connecting = false,
   sessionById,
   sessionsByWorktree,
-  tasks,
   availableAgents,
   boardById,
   boardObjectById,
@@ -391,7 +388,6 @@ export const App: React.FC<AppProps> = ({
     ? worktreeById.get(selectedSession.worktree_id)
     : null;
   const sessionSettingsSession = sessionSettingsId ? sessionById.get(sessionSettingsId) : null;
-  const _selectedSessionTasks = selectedSessionId ? tasks.get(selectedSessionId) || [] : [];
   const currentBoard = boardById.get(currentBoardId);
 
   // Find worktree and repo for WorktreeModal
@@ -491,7 +487,6 @@ export const App: React.FC<AppProps> = ({
             client={client}
             sessionById={sessionById}
             sessionsByWorktree={sessionsByWorktree}
-            tasks={tasks}
             userById={userById}
             repoById={repoById}
             worktrees={boardWorktrees}

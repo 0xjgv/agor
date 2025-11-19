@@ -11,7 +11,6 @@ import type {
   Repo,
   Session,
   SpawnConfig,
-  Task,
   User,
   UserID,
   Worktree,
@@ -74,7 +73,6 @@ interface SessionCanvasProps {
   client: AgorClient | null;
   sessionById: Map<string, Session>; // O(1) ID lookups
   sessionsByWorktree: Map<string, Session[]>; // O(1) worktree filtering
-  tasks: Map<string, Task[]>;
   userById: Map<string, User>; // Map-based user storage
   repoById: Map<string, Repo>; // Map-based repo storage
   worktrees: Worktree[];
@@ -114,7 +112,6 @@ interface SessionCanvasProps {
 
 interface SessionNodeData {
   session: Session;
-  tasks: Task[];
   userById: Map<string, User>;
   currentUserId?: string;
   onTaskClick?: (taskId: string) => void;
@@ -135,7 +132,6 @@ const SessionNode = ({ data }: { data: SessionNodeData }) => {
     <div className="session-node">
       <SessionCard
         session={data.session}
-        tasks={data.tasks}
         userById={data.userById}
         currentUserId={data.currentUserId}
         onTaskClick={data.onTaskClick}
@@ -236,7 +232,6 @@ const SessionCanvas = ({
   worktreeById,
   boardObjectById,
   commentById,
-  tasks,
   userById,
   currentUserId,
   selectedSessionId,
@@ -283,7 +278,8 @@ const SessionCanvas = ({
     }
     // Sort by object_id for stable JSON key
     boardObjectsArray.sort((a, b) => a.object_id.localeCompare(b.object_id));
-    return JSON.stringify(boardObjectsArray.map((bo) => bo.object_id));
+    // Include full object data (position, zone_id) so changes trigger re-renders
+    return JSON.stringify(boardObjectsArray);
   }, [board?.board_id, boardObjectById]);
 
   // Index by worktree_id for O(1) lookups
@@ -457,8 +453,25 @@ const SessionCanvas = ({
       const absoluteX = boardObject.position.x + zone.x;
       const absoluteY = boardObject.position.y + zone.y;
 
-      console.log(
-        `📍 Unpinning worktree ${worktreeId.substring(0, 8)}: relative (${boardObject.position.x}, ${boardObject.position.y}) -> absolute (${absoluteX}, ${absoluteY})`
+      // Optimistically store absolute position in localPositionsRef
+      // This will be used by the node sync effect until WebSocket confirms
+      localPositionsRef.current[worktreeId] = {
+        x: absoluteX,
+        y: absoluteY,
+      };
+
+      // Trigger immediate React Flow update
+      setNodes((currentNodes) =>
+        currentNodes.map((node) => {
+          if (node.id === worktreeId) {
+            return {
+              ...node,
+              position: { x: absoluteX, y: absoluteY },
+              parentId: undefined, // Remove parent relationship
+            };
+          }
+          return node;
+        })
       );
 
       // Update with absolute position and clear zone_id
@@ -466,10 +479,8 @@ const SessionCanvas = ({
         position: { x: absoluteX, y: absoluteY },
         zone_id: null, // null serializes correctly, undefined gets stripped
       });
-
-      console.log(`✓ Unpinned worktree ${worktreeId.substring(0, 8)}`);
     },
-    [board, client, boardObjectByWorktree]
+    [board, client, boardObjectByWorktree, setNodes]
   );
 
   // Convert worktrees to React Flow nodes (worktree-centric approach)
@@ -1029,7 +1040,6 @@ const SessionCanvas = ({
   }, []);
 
   // Handle node drag end - persist layout to board (debounced)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: boardObjectByWorktree used via .get() method, boardObjectById removed as Map is stable
   const handleNodeDragStop: NodeDragHandler = useCallback(
     (_event, node) => {
       if (!board || !client || !reactFlowInstanceRef.current) return;
@@ -1283,7 +1293,7 @@ const SessionCanvas = ({
                   worktree_id,
                   position,
                   // zone_id will be included if worktree was dropped on zone
-                  ...(zone_id !== undefined && { zone_id }),
+                  ...(zone_id ? { zone_id } : {}),
                 });
               }
             }
