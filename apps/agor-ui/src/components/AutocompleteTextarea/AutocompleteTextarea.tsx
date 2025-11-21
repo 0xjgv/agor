@@ -1,7 +1,7 @@
 /**
  * AutocompleteTextarea
  *
- * Textarea with @ mentions autocomplete for files and users.
+ * Textarea with @ mentions autocomplete for files, folders, and users.
  * Uses Ant Design Popover for dropdown and native textarea for input.
  * Highlights @ mentions with a background overlay.
  */
@@ -23,7 +23,7 @@ const DEBOUNCE_MS = 300;
 
 interface FileResult {
   path: string;
-  type: 'file';
+  type: 'file' | 'folder';
 }
 
 interface UserResult {
@@ -267,7 +267,7 @@ export const AutocompleteTextarea = React.forwardRef<
       const options: AutocompleteResult[] = [];
 
       if (fileResults.length > 0) {
-        options.push({ heading: 'FILES' });
+        options.push({ heading: 'FILES & FOLDERS' });
         options.push(...fileResults);
       }
 
@@ -279,6 +279,23 @@ export const AutocompleteTextarea = React.forwardRef<
 
       return options;
     }, [fileResults, query, filterUsers]);
+
+    /**
+     * Clamp highlighted index when options list changes to prevent out of bounds access
+     */
+    React.useEffect(() => {
+      if (highlightedIndex >= autocompleteOptions.length) {
+        // Find last selectable item
+        let lastSelectableIndex = -1;
+        for (let i = autocompleteOptions.length - 1; i >= 0; i--) {
+          if (!('heading' in autocompleteOptions[i])) {
+            lastSelectableIndex = i;
+            break;
+          }
+        }
+        setHighlightedIndex(lastSelectableIndex);
+      }
+    }, [autocompleteOptions, highlightedIndex]);
 
     /**
      * Handle textarea change
@@ -364,9 +381,17 @@ export const AutocompleteTextarea = React.forwardRef<
             if (isPopoverOpen) {
               e.preventDefault();
               e.stopPropagation();
-              setHighlightedIndex((prev) =>
-                prev < autocompleteOptions.length - 1 ? prev + 1 : prev
-              );
+              setHighlightedIndex((prev) => {
+                // Find next non-heading item
+                let nextIndex = prev + 1;
+                while (nextIndex < autocompleteOptions.length) {
+                  if (!('heading' in autocompleteOptions[nextIndex])) {
+                    return nextIndex;
+                  }
+                  nextIndex++;
+                }
+                return prev; // No more selectable items
+              });
             }
             break;
 
@@ -374,7 +399,17 @@ export const AutocompleteTextarea = React.forwardRef<
             if (isPopoverOpen) {
               e.preventDefault();
               e.stopPropagation();
-              setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : -1));
+              setHighlightedIndex((prev) => {
+                // Find previous non-heading item
+                let prevIndex = prev - 1;
+                while (prevIndex >= 0) {
+                  if (!('heading' in autocompleteOptions[prevIndex])) {
+                    return prevIndex;
+                  }
+                  prevIndex--;
+                }
+                return -1; // No more selectable items, reset to nothing highlighted
+              });
             }
             break;
 
@@ -493,7 +528,9 @@ export const AutocompleteTextarea = React.forwardRef<
               );
             }
 
-            const label = 'path' in item ? item.path : `${item.name} (${item.email})`;
+            const isFile = 'path' in item;
+            const label = isFile ? item.path : `${item.name} (${item.email})`;
+            const isFolder = isFile && item.type === 'folder';
             const isHighlighted = highlightedIndex === idx;
 
             return (
@@ -508,6 +545,9 @@ export const AutocompleteTextarea = React.forwardRef<
                   lineHeight: 1.4,
                   backgroundColor: isHighlighted ? token.colorPrimaryBg : 'transparent',
                   color: isHighlighted ? token.colorPrimary : token.colorText,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: token.paddingXS,
                 }}
                 onMouseEnter={(e) => {
                   setHighlightedIndex(idx);
@@ -518,6 +558,7 @@ export const AutocompleteTextarea = React.forwardRef<
                   e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
+                {isFolder && <span style={{ opacity: 0.6 }}>📁</span>}
                 <Text ellipsis>{label}</Text>
               </div>
             );
